@@ -35,6 +35,7 @@ fn server_for(v: &Vector, deny_on: Vec<Decision>) -> Running {
             workers: 4,
             deny_on,
             access_log: false,
+            resource_metadata: None,
         },
     )
     .unwrap()
@@ -209,5 +210,75 @@ fn concurrent_requests_are_all_answered() {
         })
         .collect();
     assert!(handles.into_iter().all(|t| t.join().unwrap() == 200));
+    srv.shutdown();
+}
+
+const PRM: &str = "https://mcp.example/.well-known/oauth-protected-resource";
+
+/// An MCP resource that requires a user-delegated token.
+fn mcp_server() -> Running {
+    use checklein_core::ThresholdPolicy;
+    use checklein_mcp::{McpConfig, McpOAuth};
+    let cfg: McpConfig = serde_json::from_value(serde_json::json!({
+        "resource": ["https://mcp.example/mcp"],
+        "issuers": [{ "issuer": "https://auth.example", "jwks": { "keys": [] } }]
+    }))
+    .unwrap();
+    let ck = Checklein::new(StaticResolver::new())
+        .adapter(McpOAuth::new(cfg).unwrap())
+        .policy(ThresholdPolicy {
+            require_delegation: true,
+            ..ThresholdPolicy::default()
+        });
+    start(
+        Arc::new(ck),
+        ServeConfig {
+            listen: "127.0.0.1:0".into(),
+            workers: 2,
+            deny_on: vec![],
+            access_log: false,
+            resource_metadata: Some(PRM.into()),
+        },
+    )
+    .unwrap()
+}
+
+fn mcp_request(extra: &[(&str, &str)]) -> Vec<(String, String)> {
+    let mut h = vec![
+        ("Host".to_string(), "checklein:8787".to_string()),
+        ("X-Forwarded-Method".to_string(), "POST".to_string()),
+        ("X-Forwarded-Host".to_string(), "mcp.example".to_string()),
+        ("X-Forwarded-Uri".to_string(), "/mcp".to_string()),
+    ];
+    h.extend(extra.iter().map(|(a, b)| (a.to_string(), b.to_string())));
+    h
+}
+
+#[test]
+fn missing_token_gets_401_pointing_to_resource_metadata() {
+    let srv = mcp_server();
+    let r = send(srv.addr, "/check", &mcp_request(&[]));
+    assert_eq!(r.status, 401);
+    assert_eq!(r.headers["checklein-decision"], "step_up");
+    assert_eq!(
+        r.headers["www-authenticate"],
+        format!("Bearer resource_metadata=\"{PRM}\"")
+    );
+    srv.shutdown();
+}
+
+#[test]
+fn invalid_token_gets_401_invalid_token() {
+    let srv = mcp_server();
+    let r = send(
+        srv.addr,
+        "/check",
+        &mcp_request(&[("Authorization", "Bearer not.a.token")]),
+    );
+    assert_eq!(r.status, 401);
+    assert_eq!(
+        r.headers["www-authenticate"],
+        format!("Bearer error=\"invalid_token\", resource_metadata=\"{PRM}\"")
+    );
     srv.shutdown();
 }

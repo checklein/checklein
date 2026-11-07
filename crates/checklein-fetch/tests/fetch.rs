@@ -172,3 +172,24 @@ fn live_cloudflare_research_directory() {
         .collect();
     println!("keys: {thumbs:?}, ttl: {:?}", d.ttl);
 }
+
+#[test]
+fn get_json_applies_the_same_guards() {
+    let f = DirectoryFetcher::new(FetchConfig::default());
+    assert!(matches!(
+        f.get_json("http://auth.example/jwks"),
+        Err(FetchError::BadOrigin(_))
+    ));
+    assert!(matches!(
+        f.get_json("https://user@auth.example/jwks"),
+        Err(FetchError::BadOrigin(_))
+    ));
+    assert!(matches!(
+        f.get_json("https://127.0.0.1/jwks"),
+        Err(FetchError::BlockedAddress)
+    ));
+    assert!(matches!(
+        f.get_json("https://169.254.169.254/latest/meta-data"),
+        Err(FetchError::BlockedAddress)
+    ));
+}

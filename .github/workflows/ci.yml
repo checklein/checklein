@@ -16,3 +16,4 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
       - run: cargo run -q -p checklein-cli -- conformance vectors/web-bot-auth
+      - run: cargo run -q -p checklein-cli -- conformance vectors/mcp-oauth

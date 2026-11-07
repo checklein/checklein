@@ -17,3 +17,4 @@ ureq = { version = "3.5", default-features = false, features = ["rustls"] }
 
 [dev-dependencies]
 checklein-webbotauth = { path = "../checklein-webbotauth" }
+checklein-mcp = { path = "../checklein-mcp" }

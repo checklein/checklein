@@ -1,0 +1,50 @@
+{
+  "name": "invalid-typ-jwt",
+  "description": "Header typ JWT, not at+jwt: could be an ID token (RFC 9068).",
+  "request": "POST /mcp HTTP/1.1\r\nhost: mcp.example\r\ncontent-type: application/json\r\nauthorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6InJzYS0xIn0.eyJhdWQiOiJodHRwczovL21jcC5leGFtcGxlL21jcCIsImNsaWVudF9pZCI6Imh0dHBzOi8vY2xpZW50LmV4YW1wbGUvb2F1dGgvY2xpZW50LW1ldGFkYXRhLmpzb24iLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc4OTk5OTk5MCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUiLCJzY29wZSI6InRvb2xzOnJlYWQgdG9vbHM6Y2FsbCIsInN1YiI6InVzZXItMTIzIn0.Hg-LndHRFu8MJmMLdolbznZNmGgTk1t-bhRYq0qlBI0DVa_JByasGSK6dXz0e2JHFRCFeifnhuYiOdvbJ2AkA4CmOjpLes1NFnnbcy9Rggd0My1v7ahuA3ytixUT45_6aaACpnf_n6-6nimlTk4dn86-QjNvxqIopKEYQhV8sZmWwds3c8IItnqob-P7S1FLLKwr5zo_w5wOPJvGpUnAcKBSa7L5vGVvPZbMMqVVFyxVstTi8-8Dh6Bi7jcoPfgd23g5XbH2U77Sbh0-CL0UcAGhXXDhJe7oMdZx4Z_AgJOEr_rQD1STX5qn2JwQOYQKIy6KZ2oTKOY7hL702f8M4Q\r\n\r\n",
+  "now": 1790000000,
+  "mcp_config": {
+    "issuers": [
+      {
+        "issuer": "https://auth.example",
+        "jwks": {
+          "keys": [
+            {
+              "alg": "RS256",
+              "e": "AQAB",
+              "kid": "rsa-1",
+              "kty": "RSA",
+              "n": "vrvC94rrvBA7yFkm6ZfKU0LmiitM6abUuLv4agrb5kWZ1VM3fJRgUf-pznhkoXxoOlOY80tEkDtRjpopHJZCFvcMccPvIkIhqWIZJpURARLGrh9FdOZpjD7OUWT2F5bmzLGYSm8Nnidvkso8lF-tJpdspn-pZqmATS1iXdwbijXfimEM1W5yLE--WY2q5nmDsjDpIHk2d5tqkQ7YHZzKcaefKGMPPiU9wnxY_fqGq4QRjXEGzVwIsLQT7oku2ffXTvZY7PnzFyfimZjYObQKkuqELs--44fhJ_sw3uYHTwE3jKLQm8gyBAmuc51c_J6A2IqSbPFXmQMA5IaOKHAErQ"
+            },
+            {
+              "alg": "ES256",
+              "crv": "P-256",
+              "kid": "ec-1",
+              "kty": "EC",
+              "x": "5CqKKsODxeiiWG9FtfCsTwxdKjMsfqQiEKpcPKbMQJU",
+              "y": "GhiZSdnyQYhuzabuCY28OSmySVrrb_LAX-RPZ297YCE"
+            },
+            {
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "kid": "ed-1",
+              "kty": "OKP",
+              "x": "xeRuCrenoSNDcCNlgVnY4EHPZz61lsvHJhuMnbBCPZU"
+            }
+          ]
+        }
+      }
+    ],
+    "resource": [
+      "https://mcp.example/mcp"
+    ],
+    "subject_key": "000102030405060708090a0b0c0d0e0f"
+  },
+  "require_delegation": false,
+  "expect": {
+    "assurance": 0,
+    "decision": "challenge",
+    "reason_contains": "at+jwt",
+    "has_principal": false
+  }
+}

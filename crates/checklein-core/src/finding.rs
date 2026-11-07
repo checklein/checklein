@@ -10,6 +10,8 @@ pub enum KeyTrust {
     TrustList { list: String, version: String },
     /// Discovered in-band (e.g. a `Signature-Agent` directory) and on no trust list.
     InBand,
+    /// Published by an authorization server the relying party configured as trusted.
+    Issuer { issuer: String },
 }
 
 impl KeyTrust {
@@ -22,6 +24,7 @@ impl KeyTrust {
             KeyTrust::Pinned => "pinned".into(),
             KeyTrust::TrustList { list, version } => format!("trust-list:{list}@{version}"),
             KeyTrust::InBand => "in-band".into(),
+            KeyTrust::Issuer { issuer } => format!("issuer:{issuer}"),
         }
     }
 }
@@ -64,6 +67,21 @@ pub struct Finding {
     pub digest: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
+    /// For delegated credentials: keyed hash of the principal (never the raw subject).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_ref: Option<String>,
+    /// Token issuer, for delegated credentials.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+    /// OAuth client the credential was issued to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<String>,
+    /// Delegation chain from the principal outward (RFC 8693 `act`), oldest first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub actors: Vec<String>,
+    /// Granted scopes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scope: Vec<String>,
 }
 
 impl Finding {
@@ -77,6 +95,11 @@ impl Finding {
             intent: None,
             digest: None,
             warnings: Vec::new(),
+            subject_ref: None,
+            issuer: None,
+            client_id: None,
+            actors: Vec::new(),
+            scope: Vec::new(),
         }
     }
 

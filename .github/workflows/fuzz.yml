@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [request, signature_fields, forwarded, key_material, receipts]
+        target: [request, signature_fields, forwarded, key_material, receipts, bearer]
     runs-on: ubuntu-latest
     env:
       TARGET: ${{ matrix.target }}

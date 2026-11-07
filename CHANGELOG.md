@@ -4,6 +4,13 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Added
+
+- **MCP OAuth adapter** (`--mcp-config`): verifies JWT access tokens from configured issuers (RS256/384/512, PS256/384/512, ES256/384, EdDSA; never HMAC or `none`); RFC 8707 audience, RFC 9068 `at+jwt`, `exp`/`nbf`/`iat` against the injected clock; RFC 8693 delegation chains (depth-bounded); client identity from Client ID Metadata Document URLs; machine vs user tokens (RFC 9068 `sub == client_id`, `gty`, per-issuer rules); subjects pseudonymized with a keyed hash. Issuer keys inline or from `jwks_uri` through the SSRF-guarded fetcher, with rate-limited refetching.
+- **Assurance L3** (delegated) with principal, delegation chain and scopes in the verdict.
+- **Step-up for OAuth clients:** `--require-delegation` and `--resource-metadata` make `serve` answer `401` with `WWW-Authenticate` (RFC 9728), and `error="invalid_token"` for bad tokens.
+- 21 MCP OAuth conformance vectors; `scripts/interop-keycloak.sh` verifies real Keycloak tokens; a `bearer` fuzz target.
+
 ## [0.2.0] - 2026-11-07
 
 Adds a way for operators to check their own deployment, and continuous fuzzing.

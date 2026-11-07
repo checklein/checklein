@@ -56,6 +56,9 @@ pub trait Policy: Send + Sync {
 pub struct ThresholdPolicy {
     pub allow_at: Assurance,
     pub rate_limit_at: Assurance,
+    /// Require a user-delegated credential (L3): anything weaker gets `step_up`,
+    /// which `serve` turns into `401` + `WWW-Authenticate` for OAuth clients.
+    pub require_delegation: bool,
 }
 
 impl Default for ThresholdPolicy {
@@ -63,6 +66,7 @@ impl Default for ThresholdPolicy {
         ThresholdPolicy {
             allow_at: Assurance::L2TrustedOperator,
             rate_limit_at: Assurance::L1Signed,
+            require_delegation: false,
         }
     }
 }
@@ -82,6 +86,9 @@ impl Policy for ThresholdPolicy {
             .any(|f| f.starts_with(flags::INVALID_CREDENTIAL))
         {
             return Decision::Challenge;
+        }
+        if self.require_delegation && ctx.assurance < Assurance::L3Delegated {
+            return Decision::StepUp;
         }
         if ctx.assurance >= self.allow_at {
             Decision::Allow

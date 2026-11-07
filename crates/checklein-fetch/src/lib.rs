@@ -198,10 +198,42 @@ impl DirectoryFetcher {
 
     pub fn fetch(&self, operator: &str) -> Result<Directory, FetchError> {
         let url = self.directory_url(operator)?;
-        let mut resp = self.agent.get(&url).header("Accept", "application/http-message-signatures-directory+json, application/jwk-set+json, application/json").call().map_err(|e| match e {
-            ureq::Error::Other(inner) if inner.is::<Blocked>() => FetchError::BlockedAddress,
-            other => FetchError::Http(other.to_string()),
-        })?;
+        let (body, ttl) = self.get(
+            &url,
+            "application/http-message-signatures-directory+json, application/jwk-set+json, application/json",
+        )?;
+        Ok(Directory {
+            keys: parse_directory(&body)?,
+            ttl,
+        })
+    }
+
+    /// GETs any HTTPS URL (an authorization server's `jwks_uri`, for example) under the
+    /// same guards: public addresses only, no redirects or proxies, size and time caps.
+    /// Returns the body and a TTL from `Cache-Control: max-age`, clamped.
+    pub fn get_json(&self, url: &str) -> Result<(Vec<u8>, Duration), FetchError> {
+        let ok_scheme = url.starts_with("https://")
+            || (self.cfg.allow_local_http && url.starts_with("http://"));
+        let authority = url
+            .split_once("://")
+            .map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or(""))
+            .unwrap_or("");
+        if !ok_scheme || authority.is_empty() || authority.contains('@') {
+            return Err(FetchError::BadOrigin(url.to_string()));
+        }
+        self.get(url, "application/jwk-set+json, application/json")
+    }
+
+    fn get(&self, url: &str, accept: &str) -> Result<(Vec<u8>, Duration), FetchError> {
+        let mut resp = self
+            .agent
+            .get(url)
+            .header("Accept", accept)
+            .call()
+            .map_err(|e| match e {
+                ureq::Error::Other(inner) if inner.is::<Blocked>() => FetchError::BlockedAddress,
+                other => FetchError::Http(other.to_string()),
+            })?;
         let max_age = resp
             .headers()
             .get("cache-control")
@@ -213,12 +245,11 @@ impl DirectoryFetcher {
             .limit(self.cfg.max_bytes)
             .read_to_vec()
             .map_err(|e| FetchError::Http(e.to_string()))?;
-        let keys = parse_directory(&body)?;
         let ttl = max_age
             .map(Duration::from_secs)
             .unwrap_or(self.cfg.min_ttl)
             .clamp(self.cfg.min_ttl, self.cfg.max_ttl);
-        Ok(Directory { keys, ttl })
+        Ok((body, ttl))
     }
 }
 

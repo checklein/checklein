@@ -7,11 +7,13 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
+use checklein_core::ThresholdPolicy;
 use checklein_core::encoding::{b64url_decode, hex, hex_decode, sha256_label};
 use checklein_core::keys::{Jwk, Jwks, TrustList};
 use checklein_core::receipt::{ReceiptChain, verify_chain};
 use checklein_core::{Checklein, Decision, FixedClock, RequestView, StaticResolver};
-use checklein_fetch::{FetchConfig, FetchingResolver};
+use checklein_fetch::{DirectoryFetcher, FetchConfig, FetchingResolver};
+use checklein_mcp::{JsonFetcher, McpConfig, McpOAuth};
 use checklein_serve::ServeConfig;
 use checklein_webbotauth::WebBotAuth;
 use checklein_webbotauth::vectors::{Vector, run};
@@ -53,6 +55,13 @@ struct VerifierArgs {
     /// Relying-party identifier recorded in receipts.
     #[arg(long, default_value = "urn:checklein:local")]
     rp: String,
+    /// MCP OAuth config (JSON): resource identifiers, trusted issuers, subject key.
+    /// Enables verification of `Authorization: Bearer` access tokens.
+    #[arg(long = "mcp-config")]
+    mcp_config: Option<PathBuf>,
+    /// Require a user-delegated token (assurance 3); weaker requests get step_up (401 in serve).
+    #[arg(long)]
+    require_delegation: bool,
 }
 
 #[derive(Subcommand)]
@@ -86,6 +95,9 @@ enum Cmd {
         /// Disable the per-request access log on stderr.
         #[arg(long)]
         quiet: bool,
+        /// OAuth Protected Resource Metadata URL (RFC 9728) advertised in 401 responses.
+        #[arg(long)]
+        resource_metadata: Option<String>,
         #[command(flatten)]
         verifier: VerifierArgs,
     },
@@ -133,6 +145,15 @@ fn main() -> ExitCode {
 
 type Res<T> = Result<T, String>;
 
+/// Issuer key fetching for the MCP adapter, through the SSRF-guarded fetcher.
+struct GuardedJson(DirectoryFetcher);
+
+impl JsonFetcher for GuardedJson {
+    fn get(&self, url: &str) -> Result<(Vec<u8>, std::time::Duration), String> {
+        self.0.get_json(url).map_err(|e| e.to_string())
+    }
+}
+
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Res<T> {
     let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
@@ -177,6 +198,23 @@ fn build(args: &VerifierArgs, now: Option<i64>) -> Res<Checklein> {
         Checklein::new(resolver)
     };
     let mut ck = ck.adapter(WebBotAuth::default());
+    if let Some(path) = &args.mcp_config {
+        let cfg: McpConfig = read_json(path)?;
+        let needs_fetch = cfg.issuers.iter().any(|i| i.jwks_uri.is_some());
+        let mut mcp = McpOAuth::new(cfg).map_err(|e| format!("{}: {e}", path.display()))?;
+        if needs_fetch {
+            mcp = mcp.with_fetcher(Arc::new(GuardedJson(DirectoryFetcher::new(
+                FetchConfig::default(),
+            ))));
+        }
+        ck = ck.adapter(mcp);
+    }
+    if args.require_delegation {
+        ck = ck.policy(ThresholdPolicy {
+            require_delegation: true,
+            ..ThresholdPolicy::default()
+        });
+    }
     if let Some(t) = now {
         ck = ck.clock(FixedClock(t));
     }
@@ -231,8 +269,16 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
             workers,
             deny_on,
             quiet,
+            resource_metadata,
             verifier,
         } => {
+            if let Some(url) = &resource_metadata
+                && (!url.starts_with("https://") || url.contains(['"', ' ', ',', '\\']))
+            {
+                return Err(format!(
+                    "--resource-metadata must be an https URL without quotes, spaces or commas: {url:?}"
+                ));
+            }
             let deny_on = deny_on
                 .iter()
                 .map(|d| Decision::parse(d).ok_or_else(|| format!("unknown decision {d:?}")))
@@ -243,6 +289,7 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
                 workers,
                 deny_on,
                 access_log: !quiet,
+                resource_metadata,
             };
             let running = checklein_serve::start(ck, cfg).map_err(|e| e.to_string())?;
             eprintln!(
@@ -302,12 +349,22 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
             paths.sort();
             let mut failed = 0;
             for path in &paths {
-                let v: Vector = read_json(path)?;
-                match run(&v) {
-                    Ok(_) => println!("ok    {}", v.name),
+                // Two vector families: MCP OAuth (has `mcp_config`) and Web Bot Auth.
+                let raw: serde_json::Value = read_json(path)?;
+                let (name, result) = if raw.get("mcp_config").is_some() {
+                    let v: checklein_mcp::vectors::Vector = serde_json::from_value(raw)
+                        .map_err(|e| format!("{}: {e}", path.display()))?;
+                    (v.name.clone(), checklein_mcp::vectors::run(&v).map(|_| ()))
+                } else {
+                    let v: Vector = serde_json::from_value(raw)
+                        .map_err(|e| format!("{}: {e}", path.display()))?;
+                    (v.name.clone(), run(&v).map(|_| ()))
+                };
+                match result {
+                    Ok(()) => println!("ok    {name}"),
                     Err(e) => {
                         failed += 1;
-                        println!("FAIL  {}: {e}", v.name);
+                        println!("FAIL  {name}: {e}");
                     }
                 }
             }

@@ -6,7 +6,7 @@ Agents reach sites, APIs and MCP servers carrying credentials from several incom
 
 It issues no identities, invents no new credential format, and does no KYC.
 
-> **Status: v0.1.0, early.** Web Bot Auth is implemented end to end. MCP OAuth delegation, payment-network schemes and policy-engine hooks are planned. Run it in shadow mode (observe and label, don't block) before relying on it.
+> **Status: early.** Web Bot Auth and MCP OAuth are implemented end to end. Payment-network schemes and policy-engine hooks are planned. Run it in shadow mode (observe and label, don't block) before relying on it.
 
 ## What works today
 
@@ -15,7 +15,9 @@ It issues no identities, invents no new credential format, and does no KYC.
 | RFC 9421 HTTP Message Signatures (Ed25519) | Verified against RFC 9421 Appendix B.2.6 |
 | Web Bot Auth adapter (draft-01) | Dictionary `Signature-Agent` form and Cloudflare's string form; `@authority` or `@target-uri` coverage |
 | Replay protection | On by default: each signature (or keyid + nonce) is remembered until it expires |
-| Assurance ladder L0–L2 | L3 (delegated) and L4 (human-bound) need the MCP OAuth and IDV adapters |
+| MCP OAuth adapter (`--mcp-config`) | JWT access tokens (RS256, ES256, EdDSA and more): trusted issuers, RFC 8707 audience, RFC 9068 `at+jwt`, RFC 8693 delegation chains, client identity from Client ID Metadata Document URLs, machine vs user tokens, subjects pseudonymized. Verified against real Keycloak tokens |
+| Step-up for MCP clients | `--require-delegation` + `--resource-metadata`: `401` with `WWW-Authenticate` (RFC 9728), and `error="invalid_token"` for bad tokens |
+| Assurance ladder L0–L3 | L4 (human-bound) needs identity attestations |
 | Key resolution | Pinned keys, then trust lists, then operator directories, with revocation |
 | Live directory fetch (`--fetch`) | HTTPS only, public addresses only (checked at connect time), no redirects or proxies, size/time caps, `max-age` caching, negative caching |
 | Interop with Cloudflare's `web-bot-auth` crate | Their published vector verifies here; their signer's output verifies here; their verifier agrees with ours on every vector |
@@ -24,7 +26,7 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Forward-auth server (`serve`) | For nginx `auth_request`, Traefik `ForwardAuth`, Caddy `forward_auth`: answers 200 or 403 with `Checklein-*` headers. See [`deploy/`](deploy/README.md) |
 | Docker image | Multi-stage build to a distroless, non-root image (about 55 MB) |
 | Live proxy demos | nginx, Traefik and Caddy verified end to end with `deploy/demo.sh` |
-| Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/` |
+| Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/`, 21 MCP OAuth vectors in `vectors/mcp-oauth/` |
 | CLI | `verify`, `serve`, `selftest`, `conformance`, `verify-chain`, `keygen` |
 | Fuzzing | `cargo-fuzz` targets for every parser that sees untrusted input; runs weekly in CI |
 
@@ -82,7 +84,7 @@ Receipts:
 | 0 | Declared: only a User-Agent string. A known agent name with no credential is flagged `unverified_agent_claim`. |
 | 1 | Signed: valid signature, but the key was found only in the operator's own directory. |
 | 2 | Trusted operator: the key is pinned or on a loaded trust list. |
-| 3 | Delegated: plus a delegated-principal credential (not yet implemented). |
+| 3 | Delegated: a valid access token from a trusted issuer, for this resource, on behalf of a user (MCP OAuth). |
 | 4 | Human-bound: plus an identity attestation (not yet implemented). |
 
 The default policy allows L2 and above, rate-limits L1, and passes L0 through to your existing bot defenses. It challenges invalid credentials and denies operator conflicts. Checklein never makes a site less protected than it was.
@@ -94,6 +96,7 @@ crates/checklein-core        request view, findings, assurance, policy, receipts
 crates/checklein-httpsig     RFC 9421 parsing, signature base, Ed25519 verify and sign
 crates/checklein-webbotauth  Web Bot Auth adapter and the conformance-vector runner
 crates/checklein-fetch       live key-directory fetching with SSRF guards and caching
+crates/checklein-mcp         MCP OAuth adapter (JWT access tokens, delegation) and its vector runner
 crates/checklein-interop     interop tests against Cloudflare's web-bot-auth crate
 crates/checklein-serve       forward-auth HTTP server behind `checklein serve`, and `selftest`
 crates/checklein-cli         the `checklein` binary
@@ -101,6 +104,7 @@ vectors/                     conformance vectors, usable by any verifier
 examples/                    sample requests and trust list
 deploy/                      nginx, Traefik and Caddy configs; Docker Compose demos
 fuzz/                        cargo-fuzz targets and seed corpora (nightly toolchain)
+scripts/                     interop-keycloak.sh: real tokens from a throwaway Keycloak
 ```
 
 ## Known gaps
@@ -111,7 +115,9 @@ fuzz/                        cargo-fuzz targets and seed corpora (nightly toolch
 - In `serve` mode, request bodies are not forwarded, so signatures covering `Content-Digest` cannot be checked.
 - Trust lists are not signature-checked yet (JWS planned).
 - Receipt checkpoints are not implemented, so truncating the newest entries is not detectable yet.
-- Only Ed25519 keys are accepted.
+- Web Bot Auth accepts Ed25519 keys only.
+- MCP OAuth: opaque tokens (introspection) and sender-constrained tokens (DPoP, mTLS `cnf`) are refused rather than accepted unbound.
+- MCP OAuth: authorization servers that don't follow RFC 9068 for machine tokens need a `machine_token_claims` rule (see `deploy/README.md`), or a machine token can look like a user.
 
 ## What Checklein does not claim
 

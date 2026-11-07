@@ -41,6 +41,7 @@ fn server(trust_test_key: bool) -> checklein_serve::Running {
             workers: 2,
             deny_on: vec![],
             access_log: false,
+            resource_metadata: None,
         },
     )
     .unwrap()

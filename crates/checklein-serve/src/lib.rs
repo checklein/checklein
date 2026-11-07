@@ -32,6 +32,10 @@ pub struct ServeConfig {
     pub deny_on: Vec<Decision>,
     /// Print one access-log line per request to stderr.
     pub access_log: bool,
+    /// OAuth Protected Resource Metadata URL (RFC 9728). When set, `step_up` and
+    /// invalid bearer tokens answer `401` with a `WWW-Authenticate` header pointing
+    /// OAuth/MCP clients to it.
+    pub resource_metadata: Option<String>,
 }
 
 impl Default for ServeConfig {
@@ -41,6 +45,7 @@ impl Default for ServeConfig {
             workers: 4,
             deny_on: Vec::new(),
             access_log: true,
+            resource_metadata: None,
         }
     }
 }
@@ -115,6 +120,16 @@ pub struct Outcome {
 }
 
 pub fn decide(ck: &Checklein, req: &RequestView, deny_on: &[Decision]) -> Outcome {
+    decide_with(ck, req, deny_on, None)
+}
+
+/// Like [`decide`], with OAuth-aware answers when `resource_metadata` is set.
+pub fn decide_with(
+    ck: &Checklein,
+    req: &RequestView,
+    deny_on: &[Decision],
+    resource_metadata: Option<&str>,
+) -> Outcome {
     let verdict = match ck.verify(req) {
         Ok(v) => v,
         Err(e) => {
@@ -125,27 +140,58 @@ pub fn decide(ck: &Checklein, req: &RequestView, deny_on: &[Decision]) -> Outcom
             };
         }
     };
-    let headers: Vec<(String, String)> = verdict
+    let mut headers: Vec<(String, String)> = verdict
         .downstream_headers()
         .into_iter()
         .map(|(n, v)| (n.to_string(), v))
         .collect();
 
-    let denied = verdict.decision == Decision::Deny || deny_on.contains(&verdict.decision);
-    let (status, body) = if denied {
-        let body = serde_json::json!({
-            "decision": verdict.decision.as_str(),
+    let bad_bearer = verdict
+        .context
+        .flags
+        .iter()
+        .any(|f| f.starts_with("invalid_credential:mcp-oauth"));
+    let body = |decision: Decision| {
+        serde_json::json!({
+            "decision": decision.as_str(),
             "verdict": verdict.context.verdict_id,
             "flags": verdict.context.flags,
-        });
-        (403, body.to_string())
+        })
+        .to_string()
+    };
+    let challenge = |error: Option<&str>| {
+        let mut parts = Vec::new();
+        if let Some(e) = error {
+            parts.push(format!("error=\"{e}\""));
+        }
+        if let Some(url) = resource_metadata {
+            parts.push(format!("resource_metadata=\"{url}\""));
+        }
+        if parts.is_empty() {
+            "Bearer".to_string()
+        } else {
+            format!("Bearer {}", parts.join(", "))
+        }
+    };
+
+    let d = verdict.decision;
+    let (status, out_body) = if d == Decision::Deny {
+        (403, body(d))
+    } else if d == Decision::StepUp {
+        headers.push(("www-authenticate".into(), challenge(None)));
+        (401, body(d))
+    } else if d == Decision::Challenge && bad_bearer && resource_metadata.is_some() {
+        headers.push(("www-authenticate".into(), challenge(Some("invalid_token"))));
+        (401, body(d))
+    } else if deny_on.contains(&d) {
+        (403, body(d))
     } else {
         (200, String::new())
     };
     Outcome {
         status,
         headers,
-        body,
+        body: out_body,
     }
 }
 
@@ -184,7 +230,7 @@ fn handle(ck: &Checklein, cfg: &ServeConfig, req: tiny_http::Request) {
     }
     let out = match reconstruct(&header_pairs(&req)) {
         Ok(view) => {
-            let out = decide(ck, &view, &cfg.deny_on);
+            let out = decide_with(ck, &view, &cfg.deny_on, cfg.resource_metadata.as_deref());
             if cfg.access_log {
                 let h = |name: &str| {
                     out.headers
@@ -255,7 +301,14 @@ pub fn start(ck: Arc<Checklein>, cfg: ServeConfig) -> io::Result<Running> {
             let (server, ck, cfg) = (server.clone(), ck.clone(), cfg.clone());
             thread::spawn(move || {
                 while let Ok(req) = server.recv() {
-                    handle(&ck, &cfg, req);
+                    // A bug in one request must never take a worker down: isolate panics.
+                    // The connection of a panicking request is dropped; the worker lives on.
+                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        handle(&ck, &cfg, req);
+                    }));
+                    if outcome.is_err() && cfg.access_log {
+                        eprintln!("checklein: request handler panicked; request dropped");
+                    }
                 }
             })
         })

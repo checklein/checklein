@@ -70,6 +70,46 @@ The whoami app echoes the request it received, so the output shows what your app
 
 To sign your own test requests: `cargo run -q -p checklein-webbotauth --example sign-test-request -- <host:port>`. It uses the published RFC 9421 test key, so it is for demos only.
 
+## Protecting an MCP server
+
+Put Checklein in front of an MCP server to verify OAuth access tokens and require a user-delegated token:
+
+```bash
+checklein serve \
+  --mcp-config mcp-config.json \
+  --require-delegation \
+  --resource-metadata https://mcp.example.com/.well-known/oauth-protected-resource
+```
+
+`mcp-config.json` (see [`examples/mcp-config.json`](../examples/mcp-config.json)):
+
+```json
+{
+  "resource": ["https://mcp.example.com/mcp"],
+  "issuers": [{ "issuer": "https://auth.example.com", "jwks_uri": "https://auth.example.com/.well-known/jwks.json" }],
+  "subject_key": "<32 hex characters from: openssl rand -hex 16>"
+}
+```
+
+| Request | Answer |
+| --- | --- |
+| Valid user token for this resource | `200`, `Checklein-Assurance: 3`, `Checklein-Decision: allow` |
+| Valid machine (client-credentials) token | `401` step-up when `--require-delegation` is set, otherwise `200` at assurance 2 |
+| No token | `401`, `WWW-Authenticate: Bearer resource_metadata="..."` |
+| Expired, wrong audience, untrusted issuer, forged | `401`, `WWW-Authenticate: Bearer error="invalid_token", resource_metadata="..."` |
+
+`resource` must match the `aud` your authorization server puts in tokens for this MCP server (RFC 8707). Keep `subject_key` stable: it pseudonymizes user IDs, so the same user maps to the same `subject_ref` across restarts. The raw subject never leaves Checklein.
+
+**Provider notes**
+
+| Authorization server | Settings |
+| --- | --- |
+| Keycloak | Client attribute `access.token.header.type.rfc9068: true` (issues `at+jwt`); an audience mapper for `resource`; `"machine_token_claims": [{"claim": "preferred_username", "prefix": "service-account-"}]`. Verified with `scripts/interop-keycloak.sh` |
+| Auth0 | `"accept_jwt_typ": true` (Auth0 issues `typ: JWT`); machine tokens are detected from `gty: client-credentials` |
+| Okta | Machine tokens use `sub == client_id` and are detected automatically; set `accept_jwt_typ` if your tokens use `typ: JWT` |
+
+Auth0 and Okta rows follow their published token formats and have not been tested live yet.
+
 ## Check your own deployment
 
 `checklein selftest` sends a spoofed agent, a signed test request, a replay and forged `Checklein-*` headers, and reports PASS, FAIL or SKIP for each:

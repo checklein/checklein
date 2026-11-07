@@ -57,6 +57,7 @@ jobs:
         run: |
           "target/${{ matrix.target }}/release/checklein" --version
           "target/${{ matrix.target }}/release/checklein" conformance vectors/web-bot-auth
+          "target/${{ matrix.target }}/release/checklein" conformance vectors/mcp-oauth
       - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.target }}

@@ -184,17 +184,20 @@ pub fn normalize(
         flag_set.insert(flags::OPERATOR_CONFLICT.to_string());
     }
 
-    // Prefer a finding whose key is trusted; otherwise any valid finding.
-    let best = valid
+    let trusted = |f: &&Finding| f.key_trust.as_ref().is_some_and(|t| t.is_trusted());
+    // A delegated credential (principal + trusted key) is the strongest evidence.
+    let delegated = valid
         .iter()
         .copied()
-        .find(|f| f.key_trust.as_ref().is_some_and(|t| t.is_trusted()))
+        .find(|f| trusted(f) && f.subject_ref.is_some());
+    // Otherwise prefer a finding whose key is trusted, then any valid finding.
+    let best = delegated
+        .or_else(|| valid.iter().copied().find(trusted))
         .or_else(|| valid.first().copied());
 
     let mut assurance = match best {
-        Some(f) if f.key_trust.as_ref().is_some_and(|t| t.is_trusted()) => {
-            Assurance::L2TrustedOperator
-        }
+        Some(_) if delegated.is_some() => Assurance::L3Delegated,
+        Some(f) if trusted(&f) => Assurance::L2TrustedOperator,
         Some(_) => Assurance::L1Signed,
         None => Assurance::L0Declared,
     };
@@ -214,8 +217,9 @@ pub fn normalize(
     }
 
     let agent = AgentInfo {
+        // With no conflict there is at most one operator across all valid findings.
         operator: if conflicts.is_empty() {
-            best.and_then(|f| f.operator.clone())
+            operators.iter().next().map(|s| s.to_string())
         } else {
             None
         },
@@ -224,9 +228,28 @@ pub fn normalize(
         key_source: best.and_then(|f| f.key_trust.as_ref().map(|t| t.label())),
     };
 
+    let (principal, delegation) = match (delegated, conflicts.is_empty()) {
+        (Some(f), true) => (
+            Some(Principal {
+                kind: "user".into(),
+                issuer: f.issuer.clone().unwrap_or_default(),
+                subject_ref: f.subject_ref.clone().unwrap_or_default(),
+                human_bound: false,
+            }),
+            f.actors
+                .iter()
+                .map(|a| Actor {
+                    actor: a.clone(),
+                    via: "rfc8693".into(),
+                })
+                .collect(),
+        ),
+        _ => (None, Vec::new()),
+    };
+
     let intent = best.and_then(|f| f.intent).map(|kind| Intent {
         kind,
-        scope: vec![],
+        scope: best.map(|f| f.scope.clone()).unwrap_or_default(),
         mandate: None,
     });
 
@@ -251,8 +274,8 @@ pub fn normalize(
         evaluated_at: now,
         assurance,
         agent,
-        principal: None,
-        delegation: Vec::new(),
+        principal,
+        delegation,
         intent,
         evidence,
         conflicts,

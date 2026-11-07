@@ -1,0 +1,10 @@
+{
+  "resource": ["https://mcp.example.com/mcp"],
+  "issuers": [
+    {
+      "issuer": "https://auth.example.com",
+      "jwks_uri": "https://auth.example.com/.well-known/jwks.json"
+    }
+  ],
+  "subject_key": "replace-with-32-hex-bytes-from-openssl-rand-hex-16!"
+}

@@ -30,7 +30,16 @@ pub fn resolver() -> StaticResolver {
 }
 
 pub fn verifier() -> Checklein {
+    let mcp: checklein_mcp::McpConfig = serde_json::from_str(
+        r#"{"resource":["https://example.com/mcp"],
+            "issuers":[{"issuer":"https://auth.example","accept_jwt_typ":true,
+              "jwks":{"keys":[{"kty":"OKP","crv":"Ed25519","kid":"ed-1",
+                "x":"JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs"}]}}],
+            "subject_key":"000102030405060708090a0b0c0d0e0f"}"#,
+    )
+    .expect("static config");
     Checklein::new(resolver())
         .adapter(WebBotAuth::default())
+        .adapter(checklein_mcp::McpOAuth::new(mcp).expect("valid config"))
         .clock(FixedClock(NOW))
 }

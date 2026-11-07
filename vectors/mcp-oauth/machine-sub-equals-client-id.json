@@ -1,0 +1,50 @@
+{
+  "name": "machine-sub-equals-client-id",
+  "description": "RFC 9068: sub equals client_id, so there is no user: L2.",
+  "request": "POST /mcp HTTP/1.1\r\nhost: mcp.example\r\ncontent-type: application/json\r\nauthorization: Bearer eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6InJzYS0xIn0.eyJhdWQiOiJodHRwczovL21jcC5leGFtcGxlL21jcCIsImNsaWVudF9pZCI6Imh0dHBzOi8vY2xpZW50LmV4YW1wbGUvb2F1dGgvY2xpZW50LW1ldGFkYXRhLmpzb24iLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc4OTk5OTk5MCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUiLCJzY29wZSI6InRvb2xzOnJlYWQgdG9vbHM6Y2FsbCIsInN1YiI6Imh0dHBzOi8vY2xpZW50LmV4YW1wbGUvb2F1dGgvY2xpZW50LW1ldGFkYXRhLmpzb24ifQ.BQPHZ-3vjCv2X913c5AVTveHwNl44_cO3IKWToNgGDv5-038ISQKbi_Yrj-IHBEsNzBE0bLgpm6DAK_znclULT5wgLsRwlUDpjnPsBsydxXushwl3cCPQqEc4bDrdtw-Ldf5x7_LkrxNLah-6A08ppoTACHCFez44KIrRx3DYIul7LdFpNCAnU4_ZCrwiljv9GZgVnEzWAaD4oxnca67m2ePvlETvOEYotiul4mcjfxadHUiz9bf1nmbOT7_X4Rut9KrxtFAg3lrgywTEB5oMlUjJSJeT23H1sV2YNLxBDI2yC9aITkFtmW06AXjpo_HiisHhaw9vEbTY2Eqd88x5A\r\n\r\n",
+  "now": 1790000000,
+  "mcp_config": {
+    "issuers": [
+      {
+        "issuer": "https://auth.example",
+        "jwks": {
+          "keys": [
+            {
+              "alg": "RS256",
+              "e": "AQAB",
+              "kid": "rsa-1",
+              "kty": "RSA",
+              "n": "vrvC94rrvBA7yFkm6ZfKU0LmiitM6abUuLv4agrb5kWZ1VM3fJRgUf-pznhkoXxoOlOY80tEkDtRjpopHJZCFvcMccPvIkIhqWIZJpURARLGrh9FdOZpjD7OUWT2F5bmzLGYSm8Nnidvkso8lF-tJpdspn-pZqmATS1iXdwbijXfimEM1W5yLE--WY2q5nmDsjDpIHk2d5tqkQ7YHZzKcaefKGMPPiU9wnxY_fqGq4QRjXEGzVwIsLQT7oku2ffXTvZY7PnzFyfimZjYObQKkuqELs--44fhJ_sw3uYHTwE3jKLQm8gyBAmuc51c_J6A2IqSbPFXmQMA5IaOKHAErQ"
+            },
+            {
+              "alg": "ES256",
+              "crv": "P-256",
+              "kid": "ec-1",
+              "kty": "EC",
+              "x": "5CqKKsODxeiiWG9FtfCsTwxdKjMsfqQiEKpcPKbMQJU",
+              "y": "GhiZSdnyQYhuzabuCY28OSmySVrrb_LAX-RPZ297YCE"
+            },
+            {
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "kid": "ed-1",
+              "kty": "OKP",
+              "x": "xeRuCrenoSNDcCNlgVnY4EHPZz61lsvHJhuMnbBCPZU"
+            }
+          ]
+        }
+      }
+    ],
+    "resource": [
+      "https://mcp.example/mcp"
+    ],
+    "subject_key": "000102030405060708090a0b0c0d0e0f"
+  },
+  "require_delegation": false,
+  "expect": {
+    "assurance": 2,
+    "decision": "allow",
+    "operator": "https://client.example",
+    "has_principal": false
+  }
+}

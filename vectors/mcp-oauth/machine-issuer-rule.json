@@ -1,0 +1,56 @@
+{
+  "name": "machine-issuer-rule",
+  "description": "A per-issuer rule (Keycloak service accounts) marks the token as a machine token: L2.",
+  "request": "POST /mcp HTTP/1.1\r\nhost: mcp.example\r\ncontent-type: application/json\r\nauthorization: Bearer eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6InJzYS0xIn0.eyJhdWQiOiJodHRwczovL21jcC5leGFtcGxlL21jcCIsImNsaWVudF9pZCI6Imh0dHBzOi8vY2xpZW50LmV4YW1wbGUvb2F1dGgvY2xpZW50LW1ldGFkYXRhLmpzb24iLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc4OTk5OTk5MCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtbWNwLWNsaWVudCIsInNjb3BlIjoidG9vbHM6cmVhZCB0b29sczpjYWxsIiwic3ViIjoiYWNlNTk4ZDUtNDExYS00OWFkLWI2MWQtYjc3NDhmYzBiNmIyIn0.WpZYGg__O1E8hnluI5Ag2G_s9itqLflgAy47iYIzoEbdjic3JUjYmeXfdeP38-ATluBRGRxDVGWfwZxge-7AHLaYWixX5t8q4Yy8N7bJW6CWu08bKvmw2Zw41byYwc-DB5fV79Q0Q35ePMg0kZPzcvpBXZvilxFrVe9IkvGFCNXW3-WpCRKDmwHq_wWq1O-QCkZCZ3qsduTkO9KUp4oiB7ELXw7-vouhKtgF8HURCBoIaUi59wp8ZSfvMOdel_VY8TRYkyhQXeusc4cHb87-L4Jmewg7Fzp2ywXutOZz4t3-eh-dHP0ueXU_BvWAHlToVJnpVr-lys9z9ZWzgXcTHQ\r\n\r\n",
+  "now": 1790000000,
+  "mcp_config": {
+    "issuers": [
+      {
+        "issuer": "https://auth.example",
+        "jwks": {
+          "keys": [
+            {
+              "alg": "RS256",
+              "e": "AQAB",
+              "kid": "rsa-1",
+              "kty": "RSA",
+              "n": "vrvC94rrvBA7yFkm6ZfKU0LmiitM6abUuLv4agrb5kWZ1VM3fJRgUf-pznhkoXxoOlOY80tEkDtRjpopHJZCFvcMccPvIkIhqWIZJpURARLGrh9FdOZpjD7OUWT2F5bmzLGYSm8Nnidvkso8lF-tJpdspn-pZqmATS1iXdwbijXfimEM1W5yLE--WY2q5nmDsjDpIHk2d5tqkQ7YHZzKcaefKGMPPiU9wnxY_fqGq4QRjXEGzVwIsLQT7oku2ffXTvZY7PnzFyfimZjYObQKkuqELs--44fhJ_sw3uYHTwE3jKLQm8gyBAmuc51c_J6A2IqSbPFXmQMA5IaOKHAErQ"
+            },
+            {
+              "alg": "ES256",
+              "crv": "P-256",
+              "kid": "ec-1",
+              "kty": "EC",
+              "x": "5CqKKsODxeiiWG9FtfCsTwxdKjMsfqQiEKpcPKbMQJU",
+              "y": "GhiZSdnyQYhuzabuCY28OSmySVrrb_LAX-RPZ297YCE"
+            },
+            {
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "kid": "ed-1",
+              "kty": "OKP",
+              "x": "xeRuCrenoSNDcCNlgVnY4EHPZz61lsvHJhuMnbBCPZU"
+            }
+          ]
+        },
+        "machine_token_claims": [
+          {
+            "claim": "preferred_username",
+            "prefix": "service-account-"
+          }
+        ]
+      }
+    ],
+    "resource": [
+      "https://mcp.example/mcp"
+    ],
+    "subject_key": "000102030405060708090a0b0c0d0e0f"
+  },
+  "require_delegation": false,
+  "expect": {
+    "assurance": 2,
+    "decision": "allow",
+    "operator": "https://client.example",
+    "has_principal": false
+  }
+}
