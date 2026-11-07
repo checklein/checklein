@@ -1,0 +1,14 @@
+# docker compose -f deploy/caddy/compose.yml up --build
+# then: curl -i http://localhost:8080/ -A "ChatGPT-User/1.0"
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro"]
+    depends_on: [checklein, app]
+  checklein:
+    build: ../..
+    command: ["serve", "--listen", "0.0.0.0:8787", "--trust-list", "/config/trust-list.json", "--fetch"]
+    volumes: ["../../examples/trust-list.json:/config/trust-list.json:ro"]
+  app:
+    image: traefik/whoami:v1.10

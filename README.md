@@ -22,7 +22,8 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Built-in threshold policy | Cedar and OPA hooks not yet |
 | Signed, hash-chained receipts | Compact JWS (EdDSA); `verify-chain` detects edits and dropped entries |
 | Forward-auth server (`serve`) | For nginx `auth_request`, Traefik `ForwardAuth`, Caddy `forward_auth`: answers 200 or 403 with `Checklein-*` headers. See [`deploy/`](deploy/README.md) |
-| Docker image | Multi-stage build to a distroless, non-root image |
+| Docker image | Multi-stage build to a distroless, non-root image (about 55 MB) |
+| Live proxy demos | nginx, Traefik and Caddy verified end to end with `deploy/demo.sh` |
 | Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/` |
 | CLI | `verify`, `serve`, `conformance`, `verify-chain`, `keygen` |
 
@@ -93,7 +94,6 @@ deploy/                      nginx, Traefik and Caddy configs; Docker Compose de
 - A fetched directory's own response signature is not verified yet. Keys from fetched directories stay at L1, which limits the impact.
 - Directory fetching is synchronous (blocking, 500 ms default cap). An async resolver for servers is planned.
 - In `serve` mode, request bodies are not forwarded, so signatures covering `Content-Digest` cannot be checked.
-- The nginx and Traefik configs match Checklein's tested header contract but have not been run against live proxies yet; the Caddy config is untested.
 - Trust lists are not signature-checked yet (JWS planned).
 - Receipt checkpoints are not implemented, so truncating the newest entries is not detectable yet.
 - Only Ed25519 keys are accepted.

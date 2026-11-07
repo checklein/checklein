@@ -1,0 +1,23 @@
+# Traefik dynamic configuration (file provider): every request to the app
+# goes through Checklein first.
+http:
+  routers:
+    app:
+      rule: PathPrefix(`/`)
+      entryPoints: [web]
+      middlewares: [checklein]
+      service: app
+
+  middlewares:
+    checklein:
+      forwardAuth:
+        address: http://checklein:8787/check
+        # Copy every Checklein-* response header onto the upstream request,
+        # overwriting client-sent copies (Checklein always sends all five).
+        authResponseHeadersRegex: "^Checklein-"
+
+  services:
+    app:
+      loadBalancer:
+        servers:
+          - url: http://app:80

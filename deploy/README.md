@@ -44,20 +44,31 @@ Every other header is treated as part of the original request; Web Bot Auth read
 
 ## Examples
 
-| Proxy | Files | Status |
+| Proxy | Files | Verified live (2026-11-07) |
 | --- | --- | --- |
-| nginx | [`nginx/nginx.conf`](nginx/nginx.conf), [`nginx/compose.yml`](nginx/compose.yml) | Header contract covered by Checklein's tests; not yet run against a live nginx |
-| Traefik | [`traefik/compose.yml`](traefik/compose.yml) | Header contract covered by Checklein's tests; not yet run against a live Traefik |
-| Caddy | [`caddy/Caddyfile`](caddy/Caddyfile) | Untested |
+| nginx 1.27 | [`nginx/nginx.conf`](nginx/nginx.conf), [`nginx/compose.yml`](nginx/compose.yml) | Yes: all four demo cases |
+| Traefik v3.5 | [`traefik/dynamic.yml`](traefik/dynamic.yml), [`traefik/compose.yml`](traefik/compose.yml) | Yes: all four demo cases, plus a 403 with `--deny-on challenge` |
+| Caddy 2.10 | [`caddy/Caddyfile`](caddy/Caddyfile), [`caddy/compose.yml`](caddy/compose.yml) | Yes: all four demo cases |
 
-Try one (needs Docker):
+The Traefik example uses the file provider rather than Docker labels. It works outside Docker, and it avoids Traefik v3.5's Docker provider failing against Docker Engine 29 (API version mismatch).
+
+Try one (needs Docker and a Rust toolchain for the signed request):
 
 ```bash
-docker compose -f deploy/nginx/compose.yml up --build
-curl -i http://localhost:8080/ -A "Mozilla/5.0 (compatible; ChatGPT-User/1.0)"
+docker compose -f deploy/nginx/compose.yml up -d --build    # or traefik / caddy
+deploy/demo.sh
 ```
 
-The whoami app echoes the request it received, so you can see `Checklein-Decision: pass` and `Checklein-Flags: unverified_agent_claim` arrive upstream.
+The whoami app echoes the request it received, so the output shows what your app would see:
+
+| Case | `Checklein-Decision` | `Checklein-Assurance` | Notes |
+| --- | --- | --- | --- |
+| Claims to be ChatGPT, no signature | `pass` | `0` | `Checklein-Flags: unverified_agent_claim` |
+| Signed by a trusted operator | `allow` | `2` | `Checklein-Operator: https://signature-agent.test` |
+| Same signed request replayed | `challenge` | `0` | 403 instead with `--deny-on challenge` |
+| Client sends forged `Checklein-*` headers | `pass` | `0` | Forged values overwritten; the app sees one copy |
+
+To sign your own test requests: `cargo run -q -p checklein-webbotauth --example sign-test-request -- <host:port>`. It uses the published RFC 9421 test key, so it is for demos only.
 
 ## Useful flags
 
