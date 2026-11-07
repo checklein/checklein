@@ -7,6 +7,11 @@ use checklein_fetch::parse_directory;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
+    // Signed trust lists: arbitrary input must never verify against a pinned key.
+    let publisher = checklein_core::receipt::ReceiptChain::new([3u8; 32]).verifying_key();
+    let text = String::from_utf8_lossy(data);
+    assert!(TrustList::verify_signed(&text, &[publisher], 1_790_000_000, 60).is_err());
+
     if let Ok(keys) = parse_directory(data) {
         for k in &keys {
             let _ = checklein_core::keys::jwk_thumbprint_ed25519(k);

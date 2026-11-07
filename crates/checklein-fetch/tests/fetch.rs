@@ -73,6 +73,8 @@ fn trust_list_wins_without_fetching() {
         list: "t".into(),
         version: "1".into(),
         previous: None,
+        issued_at: None,
+        expires_at: None,
         entries: vec![TrustEntry {
             operator: origin.clone(),
             display_name: None,
@@ -108,6 +110,8 @@ fn revoked_operator_is_never_fetched() {
         list: "block".into(),
         version: "1".into(),
         previous: None,
+        issued_at: None,
+        expires_at: None,
         entries: vec![TrustEntry {
             operator: origin.clone(),
             display_name: None,

@@ -18,6 +18,8 @@ fn server(trust_test_key: bool) -> checklein_serve::Running {
             list: "t".into(),
             version: "1".into(),
             previous: None,
+            issued_at: None,
+            expires_at: None,
             entries: vec![TrustEntry {
                 operator: "https://signature-agent.test".into(),
                 display_name: None,

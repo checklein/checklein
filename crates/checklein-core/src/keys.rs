@@ -123,7 +123,64 @@ pub struct TrustList {
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous: Option<String>,
+    /// Unix seconds. Set by `checklein trust-list sign`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issued_at: Option<i64>,
+    /// Unix seconds. Required for signed lists, so a stale list (one that predates a
+    /// revocation) stops being accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
     pub entries: Vec<TrustEntry>,
+}
+
+pub const TRUST_LIST_TYP: &str = "checklein-trust-list+jws";
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum TrustListError {
+    #[error("trust list signature: {0}")]
+    Jws(#[from] crate::jws::JwsError),
+    #[error("trust list payload is not a valid trust list")]
+    Payload,
+    #[error("signed trust list has no expires_at")]
+    NoExpiry,
+    #[error("trust list expired at {0}")]
+    Expired(i64),
+    #[error("trust list is not valid until {0}")]
+    NotYetValid(i64),
+}
+
+impl TrustList {
+    /// Signs the list as a compact JWS. `expires_at` must be set.
+    pub fn sign(&self, publisher: &ed25519_dalek::SigningKey) -> Result<String, TrustListError> {
+        if self.expires_at.is_none() {
+            return Err(TrustListError::NoExpiry);
+        }
+        let payload = serde_json::to_vec(self).map_err(|_| TrustListError::Payload)?;
+        Ok(crate::jws::sign(TRUST_LIST_TYP, &payload, publisher))
+    }
+
+    /// Verifies a signed list against pinned publisher keys and checks its validity
+    /// window (with `skew` seconds of tolerance) at `now`.
+    pub fn verify_signed(
+        jws: &str,
+        publishers: &[ed25519_dalek::VerifyingKey],
+        now: i64,
+        skew: i64,
+    ) -> Result<TrustList, TrustListError> {
+        let v = crate::jws::verify(jws, TRUST_LIST_TYP, publishers)?;
+        let list: TrustList =
+            serde_json::from_slice(&v.payload).map_err(|_| TrustListError::Payload)?;
+        let expires = list.expires_at.ok_or(TrustListError::NoExpiry)?;
+        if now > expires + skew {
+            return Err(TrustListError::Expired(expires));
+        }
+        if let Some(issued) = list.issued_at
+            && issued > now + skew
+        {
+            return Err(TrustListError::NotYetValid(issued));
+        }
+        Ok(list)
+    }
 }
 
 /// An offline resolver built from pinned keys, trust lists and pre-fetched directories.
@@ -276,6 +333,8 @@ mod tests {
             list: "community".into(),
             version: "1".into(),
             previous: None,
+            issued_at: None,
+            expires_at: None,
             entries: vec![TrustEntry {
                 operator: "https://op.example".into(),
                 display_name: None,
@@ -305,6 +364,56 @@ mod tests {
         assert!(matches!(
             jwk.ed25519_bytes(),
             Err(KeyError::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn signed_trust_lists() {
+        let publisher = ed25519_dalek::SigningKey::from_bytes(&[5u8; 32]);
+        let mut list = TrustList {
+            list: "community".into(),
+            version: "1".into(),
+            previous: None,
+            issued_at: Some(1_000),
+            expires_at: None,
+            entries: vec![TrustEntry {
+                operator: "https://op.example".into(),
+                display_name: None,
+                schemes: vec![],
+                keys: vec![rfc_jwk()],
+                status: EntryStatus::Active,
+            }],
+        };
+        assert_eq!(list.sign(&publisher), Err(TrustListError::NoExpiry));
+        list.expires_at = Some(2_000);
+        let jws = list.sign(&publisher).unwrap();
+        let pins = [publisher.verifying_key()];
+
+        let ok = TrustList::verify_signed(&jws, &pins, 1_500, 60).unwrap();
+        assert_eq!(ok.entries.len(), 1);
+        assert!(matches!(
+            TrustList::verify_signed(&jws, &pins, 2_100, 60),
+            Err(TrustListError::Expired(2_000))
+        ));
+        assert!(matches!(
+            TrustList::verify_signed(&jws, &pins, 900, 60),
+            Err(TrustListError::NotYetValid(1_000))
+        ));
+
+        let stranger = [ed25519_dalek::SigningKey::from_bytes(&[6u8; 32]).verifying_key()];
+        assert!(matches!(
+            TrustList::verify_signed(&jws, &stranger, 1_500, 60),
+            Err(TrustListError::Jws(_))
+        ));
+
+        // An attacker who edits the payload (adding their key) breaks the signature.
+        let mut parts: Vec<String> = jws.split('.').map(str::to_string).collect();
+        let mut tampered = list.clone();
+        tampered.entries[0].operator = "https://attacker.example".into();
+        parts[1] = crate::encoding::b64url(&serde_json::to_vec(&tampered).unwrap());
+        assert!(matches!(
+            TrustList::verify_signed(&parts.join("."), &pins, 1_500, 60),
+            Err(TrustListError::Jws(crate::jws::JwsError::BadSignature))
         ));
     }
 }

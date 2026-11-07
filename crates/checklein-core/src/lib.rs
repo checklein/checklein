@@ -11,6 +11,7 @@ pub mod clock;
 pub mod context;
 pub mod encoding;
 pub mod finding;
+pub mod jws;
 pub mod keys;
 pub mod policy;
 pub mod receipt;

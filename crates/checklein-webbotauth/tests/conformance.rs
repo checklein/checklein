@@ -37,6 +37,8 @@ fn trust_list(status: EntryStatus) -> TrustList {
         list: "vectors".into(),
         version: "1".into(),
         previous: None,
+        issued_at: None,
+        expires_at: None,
         entries: vec![TrustEntry {
             operator: OPERATOR.into(),
             display_name: Some("Example signing agent".into()),

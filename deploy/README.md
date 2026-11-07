@@ -133,8 +133,27 @@ The signed check uses the public RFC 9421 test key, so it reports SKIP unless th
 ```bash
 checklein serve \
   --listen 127.0.0.1:8787 \
-  --trust-list trust-list.json \
+  --trust-list trust-list.jws --trust-list-key <publisher public key> --require-signed-trust-lists \
   --fetch \
   --receipts receipts.jwsl --receipt-key receipt-key.hex --rp https://your.site \
+  --checkpoints /other-volume/checkpoints.jwsl --checkpoint-every 100 \
   --deny-on challenge
 ```
+
+## Signing your trust list
+
+```bash
+checklein keygen --out publisher.hex                       # prints the public key ("x")
+checklein trust-list sign trust-list.json --key publisher.hex --valid-days 7 > trust-list.jws
+checklein trust-list verify trust-list.jws --publisher-key <x>
+```
+
+Re-sign before the list expires (a weekly job works). An expired list is refused, so revocations can't be frozen out by replaying an old file.
+
+## Auditing receipts
+
+```bash
+checklein verify-chain receipts.jwsl --public-key <receipt key x> --checkpoints /other-volume/checkpoints.jwsl
+```
+
+Keep checkpoints on different storage from the log (another volume, bucket or host). Someone who can rewrite both can rewrite history; someone who can only cut the log short is caught.

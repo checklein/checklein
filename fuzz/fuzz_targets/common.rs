@@ -12,6 +12,8 @@ pub fn resolver() -> StaticResolver {
         list: "fuzz".into(),
         version: "1".into(),
         previous: None,
+        issued_at: None,
+        expires_at: None,
         entries: vec![TrustEntry {
             operator: "https://signature-agent.test".into(),
             display_name: None,

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use checklein_core::ThresholdPolicy;
 use checklein_core::encoding::{b64url_decode, hex, hex_decode, sha256_label};
 use checklein_core::keys::{Jwk, Jwks, TrustList};
-use checklein_core::receipt::{ReceiptChain, verify_chain};
+use checklein_core::receipt::{ReceiptChain, verify_chain, verify_checkpoints};
 use checklein_core::{Checklein, Decision, FixedClock, RequestView, StaticResolver};
 use checklein_fetch::{DirectoryFetcher, FetchConfig, FetchingResolver};
 use checklein_mcp::{JsonFetcher, McpConfig, McpOAuth};
@@ -33,9 +33,16 @@ struct Cli {
 /// Options shared by `verify` and `serve`: where keys come from and where receipts go.
 #[derive(Args)]
 struct VerifierArgs {
-    /// Trust list JSON file. Repeatable; earlier lists take precedence.
+    /// Trust list: a signed list (`.jws`, verified against --trust-list-key) or an
+    /// unsigned JSON file. Repeatable; earlier lists take precedence.
     #[arg(long = "trust-list")]
     trust_lists: Vec<PathBuf>,
+    /// Publisher key (base64url Ed25519) that signed trust lists must verify against. Repeatable.
+    #[arg(long = "trust-list-key")]
+    trust_list_keys: Vec<String>,
+    /// Refuse unsigned trust lists.
+    #[arg(long)]
+    require_signed_trust_lists: bool,
     /// Pre-fetched operator key directory: OPERATOR=jwks.json. Keys found only here stay at L1.
     #[arg(long = "directory")]
     directories: Vec<String>,
@@ -52,6 +59,13 @@ struct VerifierArgs {
     /// File holding the 32-byte receipt-signing seed as hex (see `keygen`).
     #[arg(long)]
     receipt_key: Option<PathBuf>,
+    /// Append signed checkpoints here (keep it on other storage than the receipt log),
+    /// so a log cut short can be detected. Needs --receipts.
+    #[arg(long, requires = "receipts")]
+    checkpoints: Option<PathBuf>,
+    /// Write a checkpoint every N receipts.
+    #[arg(long, default_value_t = 100)]
+    checkpoint_every: u64,
     /// Relying-party identifier recorded in receipts.
     #[arg(long, default_value = "urn:checklein:local")]
     rp: String,
@@ -62,6 +76,27 @@ struct VerifierArgs {
     /// Require a user-delegated token (assurance 3); weaker requests get step_up (401 in serve).
     #[arg(long)]
     require_delegation: bool,
+}
+
+#[derive(Subcommand)]
+enum TrustListCmd {
+    /// Sign a trust list JSON file with a publisher key; prints the signed list (JWS).
+    Sign {
+        list: PathBuf,
+        /// Publisher seed file (hex), as written by `keygen`.
+        #[arg(long)]
+        key: PathBuf,
+        /// Validity from now, in days (sets issued_at and expires_at).
+        #[arg(long, default_value_t = 7)]
+        valid_days: i64,
+    },
+    /// Verify a signed trust list and print a summary.
+    Verify {
+        list: PathBuf,
+        /// Publisher public key (base64url), repeatable.
+        #[arg(long = "publisher-key", required = true)]
+        publisher_keys: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -119,13 +154,19 @@ enum Cmd {
     },
     /// Run every *.json conformance vector in a directory.
     Conformance { dir: PathBuf },
-    /// Verify signatures and hash links of a receipt log.
+    /// Verify signatures and hash links of a receipt log, and its checkpoints if given.
     VerifyChain {
         log: PathBuf,
         /// Receipt-signing public key, base64url (printed by `keygen`).
         #[arg(long)]
         public_key: String,
+        /// Checkpoint file written by --checkpoints: detects a log cut short.
+        #[arg(long)]
+        checkpoints: Option<PathBuf>,
     },
+    /// Sign or verify trust lists.
+    #[command(subcommand)]
+    TrustList(TrustListCmd),
     /// Generate a receipt-signing key. Writes the secret seed (hex) to --out and prints the public JWK.
     Keygen {
         #[arg(long)]
@@ -144,6 +185,24 @@ fn main() -> ExitCode {
 }
 
 type Res<T> = Result<T, String>;
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+fn public_keys(b64: &[String]) -> Res<Vec<ed25519_dalek::VerifyingKey>> {
+    b64.iter()
+        .map(|k| {
+            let bytes: [u8; 32] = b64url_decode(k)
+                .and_then(|v| v.try_into().ok())
+                .ok_or_else(|| format!("key {k:?} must be 32 bytes, base64url"))?;
+            ed25519_dalek::VerifyingKey::from_bytes(&bytes).map_err(|e| format!("key {k:?}: {e}"))
+        })
+        .collect()
+}
 
 /// Issuer key fetching for the MCP adapter, through the SSRF-guarded fetcher.
 struct GuardedJson(DirectoryFetcher);
@@ -180,8 +239,32 @@ fn build(args: &VerifierArgs, now: Option<i64>) -> Res<Checklein> {
         let jwk: Jwk = read_json(&path)?;
         resolver.pin(&jwk, Some(op)).map_err(|e| e.to_string())?;
     }
+    let publishers = public_keys(&args.trust_list_keys)?;
+    let clock_now = now.unwrap_or_else(unix_now);
     for path in &args.trust_lists {
-        let list: TrustList = read_json(path)?;
+        let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let list: TrustList = if text.trim_start().starts_with('{') {
+            if args.require_signed_trust_lists {
+                return Err(format!(
+                    "{}: unsigned trust list refused (--require-signed-trust-lists)",
+                    path.display()
+                ));
+            }
+            eprintln!(
+                "warning: {} is an unsigned trust list; sign it with `checklein trust-list sign`",
+                path.display()
+            );
+            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?
+        } else {
+            if publishers.is_empty() {
+                return Err(format!(
+                    "{}: signed trust list needs --trust-list-key",
+                    path.display()
+                ));
+            }
+            TrustList::verify_signed(&text, &publishers, clock_now, 60)
+                .map_err(|e| format!("{}: {e}", path.display()))?
+        };
         resolver.load_trust_list(&list).map_err(|e| e.to_string())?;
     }
     for d in &args.directories {
@@ -224,14 +307,26 @@ fn build(args: &VerifierArgs, now: Option<i64>) -> Res<Checklein> {
             .ok()
             .and_then(|s| s.lines().last().map(str::to_string))
         {
-            chain = chain.resume(sha256_label(last.as_bytes()));
+            let count = fs::read_to_string(log)
+                .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count() as u64)
+                .unwrap_or(0);
+            chain = chain.resume(sha256_label(last.trim().as_bytes()), count);
         }
         let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(log)
             .map_err(|e| format!("{}: {e}", log.display()))?;
-        ck = ck.receipts(&args.rp, chain.with_sink(Box::new(file)));
+        chain = chain.with_sink(Box::new(file));
+        if let Some(cp) = &args.checkpoints {
+            let cp_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(cp)
+                .map_err(|e| format!("{}: {e}", cp.display()))?;
+            chain = chain.with_checkpoints(args.checkpoint_every, Box::new(cp_file));
+        }
+        ck = ck.receipts(&args.rp, chain);
     }
     Ok(ck)
 }
@@ -376,16 +471,72 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
             })
         }
 
-        Cmd::VerifyChain { log, public_key } => {
+        Cmd::TrustList(TrustListCmd::Sign {
+            list,
+            key,
+            valid_days,
+        }) => {
+            let mut tl: TrustList = read_json(&list)?;
+            let now = unix_now();
+            tl.issued_at = Some(now);
+            tl.expires_at = Some(now + valid_days.max(1) * 86_400);
+            let signer = ed25519_dalek::SigningKey::from_bytes(&read_seed(&key)?);
+            println!("{}", tl.sign(&signer).map_err(|e| e.to_string())?);
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Cmd::TrustList(TrustListCmd::Verify {
+            list,
+            publisher_keys,
+        }) => {
+            let text = fs::read_to_string(&list).map_err(|e| format!("{}: {e}", list.display()))?;
+            match TrustList::verify_signed(&text, &public_keys(&publisher_keys)?, unix_now(), 60) {
+                Ok(tl) => {
+                    println!(
+                        "ok: list {} version {}, {} entries, expires_at {}",
+                        tl.list,
+                        tl.version,
+                        tl.entries.len(),
+                        tl.expires_at.unwrap_or_default()
+                    );
+                    Ok(ExitCode::SUCCESS)
+                }
+                Err(e) => {
+                    println!("FAIL: {e}");
+                    Ok(ExitCode::FAILURE)
+                }
+            }
+        }
+
+        Cmd::VerifyChain {
+            log,
+            public_key,
+            checkpoints,
+        } => {
             let pk: [u8; 32] = b64url_decode(&public_key)
                 .and_then(|v| v.try_into().ok())
                 .ok_or("public key must be 32 bytes, base64url")?;
             let vk = ed25519_dalek::VerifyingKey::from_bytes(&pk).map_err(|e| e.to_string())?;
             let text = fs::read_to_string(&log).map_err(|e| format!("{}: {e}", log.display()))?;
             let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-            match verify_chain(&lines, &vk) {
-                Ok(receipts) => {
-                    println!("ok: {} receipts, chain intact", receipts.len());
+            let result = match &checkpoints {
+                None => verify_chain(&lines, &vk).map(|r| {
+                    format!("ok: {} receipts, chain intact (no checkpoints given: a log cut short would not be detected)", r.len())
+                }),
+                Some(cp) => {
+                    let cp_text = fs::read_to_string(cp).map_err(|e| format!("{}: {e}", cp.display()))?;
+                    let cp_lines: Vec<&str> = cp_text.lines().filter(|l| !l.trim().is_empty()).collect();
+                    verify_checkpoints(&lines, &cp_lines, &vk).map(|r| {
+                        format!(
+                            "ok: {} receipts, chain intact; {} checkpoints, latest covers {} receipts",
+                            r.receipts, r.checkpoints, r.covered
+                        )
+                    })
+                }
+            };
+            match result {
+                Ok(msg) => {
+                    println!("{msg}");
                     Ok(ExitCode::SUCCESS)
                 }
                 Err(e) => {

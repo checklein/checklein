@@ -47,6 +47,8 @@ fn trusted_resolver() -> StaticResolver {
         list: "interop".into(),
         version: "1".into(),
         previous: None,
+        issued_at: None,
+        expires_at: None,
         entries: vec![TrustEntry {
             operator: OPERATOR.into(),
             display_name: None,

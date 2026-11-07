@@ -11,6 +11,13 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 - **Step-up for OAuth clients:** `--require-delegation` and `--resource-metadata` make `serve` answer `401` with `WWW-Authenticate` (RFC 9728), and `error="invalid_token"` for bad tokens.
 - 21 MCP OAuth conformance vectors; `scripts/interop-keycloak.sh` verifies real Keycloak tokens; a `bearer` fuzz target.
 
+### Security
+
+- **Signed trust lists:** `checklein trust-list sign` / `verify`; `--trust-list-key` pins publisher keys; signed lists must carry `expires_at` and are refused when tampered, expired, not yet valid or signed by another key; `--require-signed-trust-lists` refuses unsigned files.
+- **Receipt checkpoints:** `--checkpoints FILE --checkpoint-every N` write signed checkpoints (count + head) to separate storage; `verify-chain --checkpoints` detects a log cut short or rewritten under a checkpoint.
+- Receipts, checkpoints and trust lists share one compact-JWS implementation with a distinct `typ` per artifact, so one can never be passed off as another.
+- `serve` isolates panics per request; fuzzing found and fixed a remote panic on non-ASCII `Authorization` headers.
+
 ## [0.2.0] - 2026-11-07
 
 Adds a way for operators to check their own deployment, and continuous fuzzing.

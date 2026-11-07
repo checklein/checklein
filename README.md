@@ -19,15 +19,17 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Step-up for MCP clients | `--require-delegation` + `--resource-metadata`: `401` with `WWW-Authenticate` (RFC 9728), and `error="invalid_token"` for bad tokens |
 | Assurance ladder L0–L3 | L4 (human-bound) needs identity attestations |
 | Key resolution | Pinned keys, then trust lists, then operator directories, with revocation |
+| Signed trust lists | `checklein trust-list sign` / `verify`; lists are JWS-signed by a publisher key you pin (`--trust-list-key`), must carry an expiry, and are refused when tampered, expired or signed by anyone else. `--require-signed-trust-lists` refuses unsigned files |
 | Live directory fetch (`--fetch`) | HTTPS only, public addresses only (checked at connect time), no redirects or proxies, size/time caps, `max-age` caching, negative caching |
 | Interop with Cloudflare's `web-bot-auth` crate | Their published vector verifies here; their signer's output verifies here; their verifier agrees with ours on every vector |
 | Built-in threshold policy | Cedar and OPA hooks not yet |
 | Signed, hash-chained receipts | Compact JWS (EdDSA); `verify-chain` detects edits and dropped entries |
+| Receipt checkpoints | `--checkpoints FILE --checkpoint-every N`: signed checkpoints on separate storage; `verify-chain --checkpoints` detects a log cut short or rewritten |
 | Forward-auth server (`serve`) | For nginx `auth_request`, Traefik `ForwardAuth`, Caddy `forward_auth`: answers 200 or 403 with `Checklein-*` headers. See [`deploy/`](deploy/README.md) |
 | Docker image | Multi-stage build to a distroless, non-root image (about 55 MB) |
 | Live proxy demos | nginx, Traefik and Caddy verified end to end with `deploy/demo.sh` |
 | Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/`, 21 MCP OAuth vectors in `vectors/mcp-oauth/` |
-| CLI | `verify`, `serve`, `selftest`, `conformance`, `verify-chain`, `keygen` |
+| CLI | `verify`, `serve`, `selftest`, `conformance`, `verify-chain`, `trust-list sign/verify`, `keygen` |
 | Fuzzing | `cargo-fuzz` targets for every parser that sees untrusted input; runs weekly in CI |
 
 ## Install
@@ -113,8 +115,9 @@ scripts/                     interop-keycloak.sh: real tokens from a throwaway K
 - A fetched directory's own response signature is not verified yet. Keys from fetched directories stay at L1, which limits the impact.
 - Directory fetching is synchronous (blocking, 500 ms default cap). An async resolver for servers is planned.
 - In `serve` mode, request bodies are not forwarded, so signatures covering `Content-Digest` cannot be checked.
-- Trust lists are not signature-checked yet (JWS planned).
-- Receipt checkpoints are not implemented, so truncating the newest entries is not detectable yet.
+- Unsigned trust lists are still accepted, with a warning, unless `--require-signed-trust-lists` is set.
+- A signed trust list can be replayed until it expires (keep validity short, 7 days by default); there is no version-rollback check yet.
+- Receipts written after the latest checkpoint are only hash-linked: cutting them off is detectable only up to that checkpoint.
 - Web Bot Auth accepts Ed25519 keys only.
 - MCP OAuth: opaque tokens (introspection) and sender-constrained tokens (DPoP, mTLS `cnf`) are refused rather than accepted unbound.
 - MCP OAuth: authorization servers that don't follow RFC 9068 for machine tokens need a `machine_token_claims` rule (see `deploy/README.md`), or a machine token can look like a user.
