@@ -1,0 +1,21 @@
+[package]
+name = "checklein-interop"
+description = "Interop tests against other Web Bot Auth implementations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+checklein-core = { path = "../checklein-core" }
+checklein-httpsig = { path = "../checklein-httpsig" }
+checklein-webbotauth = { path = "../checklein-webbotauth" }
+ed25519-dalek.workspace = true
+web-bot-auth = "=0.7.0"
+indexmap = "2"
+serde_json.workspace = true
+checklein-fetch = { path = "../checklein-fetch" }

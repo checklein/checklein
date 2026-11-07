@@ -234,17 +234,20 @@ fn component_value(req: &RequestView, c: &Component) -> Result<String, HttpSigEr
             other => return Err(HttpSigError::Unsupported(other.to_string())),
         });
     }
-    let value = req.header(&c.name).ok_or_else(missing)?;
     match &c.key {
-        None => Ok(value),
-        Some(key) => {
-            let dict: Dictionary = Parser::new(&value).parse().map_err(|_| missing())?;
-            match dict.get(key.as_str()).ok_or_else(missing)? {
-                ListEntry::Item(item) => Ok(item.serialize()),
-                ListEntry::InnerList(inner) => Ok(serialize_inner(inner)),
-            }
-        }
+        None => req.header(&c.name).ok_or_else(missing),
+        Some(key) => dictionary_member(req, &c.name, key).ok_or_else(missing),
     }
+}
+
+/// The serialized value of one member of a dictionary-structured header
+/// (RFC 9421 §2.1.2, the `key` parameter), or `None` if absent or malformed.
+pub fn dictionary_member(req: &RequestView, header: &str, key: &str) -> Option<String> {
+    let dict: Dictionary = Parser::new(&req.header(header)?).parse().ok()?;
+    Some(match dict.get(key)? {
+        ListEntry::Item(item) => item.serialize(),
+        ListEntry::InnerList(inner) => serialize_inner(inner),
+    })
 }
 
 /// Builds the RFC 9421 §2.5 signature base for one entry.

@@ -18,3 +18,4 @@ clap.workspace = true
 serde_json.workspace = true
 ed25519-dalek.workspace = true
 serde.workspace = true
+checklein-fetch = { path = "../checklein-fetch" }

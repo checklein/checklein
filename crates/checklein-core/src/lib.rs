@@ -14,6 +14,7 @@ pub mod finding;
 pub mod keys;
 pub mod policy;
 pub mod receipt;
+pub mod replay;
 pub mod request;
 pub mod verifier;
 
@@ -23,5 +24,6 @@ pub use context::{AgentContext, Assurance};
 pub use finding::{Finding, FindingResult, IntentKind, KeyTrust};
 pub use keys::{KeyHint, KeyResolver, ResolvedKey, StaticResolver};
 pub use policy::{Decision, Policy, ThresholdPolicy};
+pub use replay::{MemoryReplayGuard, ReplayGuard};
 pub use request::RequestView;
 pub use verifier::{Checklein, Verdict};

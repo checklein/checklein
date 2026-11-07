@@ -5,15 +5,22 @@
 //! - Cloudflare's earlier structured-string form, covered as `"signature-agent"`
 //!   (accepted with the warning `signature_agent_string_form`)
 //!
-//! Not yet: nonce replay cache, live fetch of the operator's key directory
-//! (directories are supplied pre-fetched through the resolver), Visa TAP and
-//! Mastercard Agent Pay tag profiles.
+//! Replay protection: each verified signature is remembered until it expires
+//! (keyed by `keyid` + `nonce` when a nonce is present, else by the signature bytes).
+//!
+//! Coverage: `@authority` or `@target-uri` must be covered (both bind the host,
+//! matching Cloudflare's verifier).
+//!
+//! Not yet: Visa TAP and Mastercard Agent Pay tag profiles.
 
 pub mod vectors;
 
+use std::sync::Arc;
+
 use checklein_core::encoding::sha256_label;
 use checklein_core::{
-    Clock, Finding, FindingResult, KeyHint, KeyResolver, RequestView, SchemeAdapter,
+    Clock, Finding, FindingResult, KeyHint, KeyResolver, MemoryReplayGuard, ReplayGuard,
+    RequestView, SchemeAdapter,
 };
 use checklein_httpsig::{SignatureEntry, parse_signatures, signature_base, verify_ed25519};
 use sfv::{Dictionary, Item, ListEntry, Parser};
@@ -25,7 +32,8 @@ pub const DIRECTORY_PATH: &str = "/.well-known/http-message-signatures-directory
 
 pub mod warnings {
     pub const STRING_FORM: &str = "signature_agent_string_form";
-    pub const NONCE_NOT_CHECKED: &str = "nonce_not_checked";
+    /// Replay protection is disabled on this adapter.
+    pub const REPLAY_NOT_CHECKED: &str = "replay_not_checked";
 }
 
 #[derive(Debug, Clone)]
@@ -45,14 +53,37 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone)]
 pub struct WebBotAuth {
     pub cfg: Config,
+    replay: Option<Arc<dyn ReplayGuard>>,
+}
+
+impl Default for WebBotAuth {
+    /// Default config with an in-memory replay cache.
+    fn default() -> Self {
+        WebBotAuth::new(Config::default())
+    }
 }
 
 impl WebBotAuth {
     pub fn new(cfg: Config) -> Self {
-        WebBotAuth { cfg }
+        WebBotAuth {
+            cfg,
+            replay: Some(Arc::new(MemoryReplayGuard::default())),
+        }
+    }
+
+    /// Shares a replay store (e.g. one backed by Redis across instances).
+    pub fn with_replay_guard(mut self, guard: Arc<dyn ReplayGuard>) -> Self {
+        self.replay = Some(guard);
+        self
+    }
+
+    /// Disables replay protection. Valid findings then carry `replay_not_checked`.
+    pub fn without_replay_guard(mut self) -> Self {
+        self.replay = None;
+        self
     }
 }
 
@@ -111,8 +142,8 @@ impl WebBotAuth {
         if expires < now - self.cfg.clock_skew_secs {
             return invalid("signature expired");
         }
-        if !e.covers("@authority") {
-            return invalid("@authority is not covered");
+        if !e.covers("@authority") && !e.covers("@target-uri") {
+            return invalid("neither @authority nor @target-uri is covered");
         }
         let Some(keyid) = &p.keyid else {
             return invalid("keyid is required");
@@ -146,8 +177,19 @@ impl WebBotAuth {
             f.digest = Some(digest);
             return f;
         }
-        if p.nonce.is_some() {
-            warnings.push(warnings::NONCE_NOT_CHECKED.to_string());
+        match &self.replay {
+            Some(guard) => {
+                let replay_key = match &p.nonce {
+                    Some(nonce) => format!("n:{keyid}:{nonce}"),
+                    None => format!("s:{}", sha256_label(&e.signature)),
+                };
+                if !guard.first_use(&replay_key, expires + self.cfg.clock_skew_secs, now) {
+                    let mut f = invalid("replayed signature");
+                    f.digest = Some(digest);
+                    return f;
+                }
+            }
+            None => warnings.push(warnings::REPLAY_NOT_CHECKED.to_string()),
         }
 
         let mut f = Finding::new(SCHEME, FindingResult::Valid);

@@ -30,6 +30,12 @@ pub struct KeyHint<'a> {
 
 pub trait KeyResolver: Send + Sync {
     fn resolve(&self, keyid: &str, hint: &KeyHint<'_>) -> Option<ResolvedKey>;
+
+    /// Whether a loaded trust list revokes this operator. Wrapping resolvers (such as a
+    /// live directory fetcher) must not hand out keys for a revoked operator.
+    fn is_revoked(&self, _operator: &str) -> bool {
+        false
+    }
 }
 
 /// An OKP/Ed25519 JSON Web Key. Other key types are rejected for now.
@@ -217,6 +223,10 @@ impl KeyResolver for StaticResolver {
                 trust: KeyTrust::InBand,
             })
         })
+    }
+
+    fn is_revoked(&self, operator: &str) -> bool {
+        self.revoked.contains(operator)
     }
 }
 

@@ -182,6 +182,20 @@ fn build_vectors() -> Vec<Vector> {
         },
     ));
 
+    let target_uri = sign(
+        base_request("site.example"),
+        vec![Component::new("@target-uri").unwrap()],
+        ok_params(),
+    );
+    v.push(vector(
+        "valid-target-uri-instead-of-authority",
+        "Covers @target-uri, which binds the host, instead of @authority. Cloudflare's verifier accepts this too.",
+        &target_uri,
+        trusted(),
+        vec![],
+        expect(2, Decision::Allow),
+    ));
+
     let invalid = |reason: &str| Expect {
         reason_contains: Some(reason.into()),
         flags: vec!["invalid_credential:web-bot-auth@draft-01".into()],

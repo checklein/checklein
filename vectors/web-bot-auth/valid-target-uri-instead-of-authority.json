@@ -1,0 +1,32 @@
+{
+  "name": "valid-target-uri-instead-of-authority",
+  "description": "Covers @target-uri, which binds the host, instead of @authority. Cloudflare's verifier accepts this too.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)\r\nsignature-input: sig1=(\"@target-uri\");created=1735689590;expires=1735689650;keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";alg=\"ed25519\";tag=\"web-bot-auth\"\r\nsignature: sig1=:H8s92USDdIcn3jczgtyzbTmoKxm3ZBHGoxcqB+wXGUhut6PHKlszTlByqpPYceWyz0VqOYsZV0colMVP4B9aAA==:\r\n\r\n",
+  "now": 1735689600,
+  "trust_list": {
+    "list": "vectors",
+    "version": "1",
+    "entries": [
+      {
+        "operator": "https://signature-agent.test",
+        "display_name": "Example signing agent",
+        "schemes": [
+          "web-bot-auth"
+        ],
+        "keys": [
+          {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+            "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+          }
+        ],
+        "status": "active"
+      }
+    ]
+  },
+  "expect": {
+    "assurance": 2,
+    "decision": "allow"
+  }
+}

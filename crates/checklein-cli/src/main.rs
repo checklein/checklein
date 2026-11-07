@@ -9,6 +9,7 @@ use checklein_core::encoding::{b64url_decode, hex, hex_decode, sha256_label};
 use checklein_core::keys::{Jwk, Jwks, TrustList};
 use checklein_core::receipt::{ReceiptChain, verify_chain};
 use checklein_core::{Checklein, FixedClock, RequestView, StaticResolver};
+use checklein_fetch::{FetchConfig, FetchingResolver};
 use checklein_webbotauth::WebBotAuth;
 use checklein_webbotauth::vectors::{Vector, run};
 use clap::{Parser, Subcommand};
@@ -53,6 +54,10 @@ enum Cmd {
         /// Relying-party identifier recorded in receipts.
         #[arg(long, default_value = "urn:checklein:local")]
         rp: String,
+        /// Fetch unknown operators' key directories live (HTTPS, public addresses only).
+        /// Keys found this way stay at L1.
+        #[arg(long)]
+        fetch: bool,
     },
     /// Run every *.json conformance vector in a directory.
     Conformance { dir: PathBuf },
@@ -113,6 +118,7 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
             receipts,
             receipt_key,
             rp,
+            fetch,
         } => {
             let raw = if request == "-" {
                 let mut s = String::new();
@@ -143,7 +149,12 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
                     .map_err(|e| e.to_string())?;
             }
 
-            let mut ck = Checklein::new(resolver).adapter(WebBotAuth::default());
+            let ck = if fetch {
+                Checklein::new(FetchingResolver::new(resolver, FetchConfig::default()))
+            } else {
+                Checklein::new(resolver)
+            };
+            let mut ck = ck.adapter(WebBotAuth::default());
             if let Some(t) = now {
                 ck = ck.clock(FixedClock(t));
             }
