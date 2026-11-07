@@ -1,0 +1,24 @@
+{
+  "name": "valid-in-band-key-only",
+  "description": "Same request, but the key is known only from the operator's own directory. Capped at L1 and rate-limited.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)\r\nsignature-agent: agent1=\"https://signature-agent.test\"\r\nsignature-input: sig1=(\"@authority\" \"signature-agent\";key=\"agent1\");created=1735689590;expires=1735689650;keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";alg=\"ed25519\";tag=\"web-bot-auth\"\r\nsignature: sig1=:JKGpMNfO2cviQSDyCdjL8PxfjUKLlviq9f5W/JunZDZb/aW32dlU/GGHXfsrnTeuKeTeMZB7s3OEU8aDMPq1Cg==:\r\n\r\n",
+  "now": 1735689600,
+  "directories": [
+    {
+      "operator": "https://signature-agent.test",
+      "keys": [
+        {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+          "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "assurance": 1,
+    "decision": "rate_limit",
+    "operator": "https://signature-agent.test"
+  }
+}

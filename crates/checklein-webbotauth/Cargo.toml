@@ -1,0 +1,18 @@
+[package]
+name = "checklein-webbotauth"
+description = "Web Bot Auth scheme adapter for Checklein"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+checklein-core = { path = "../checklein-core" }
+checklein-httpsig = { path = "../checklein-httpsig" }
+sfv.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+ed25519-dalek.workspace = true

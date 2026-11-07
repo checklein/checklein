@@ -1,0 +1,33 @@
+{
+  "name": "valid-no-signature-agent",
+  "description": "No Signature-Agent header; the keyid alone resolves to a trust-list key.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)\r\nsignature-input: sig1=(\"@authority\");created=1735689590;expires=1735689650;keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";alg=\"ed25519\";tag=\"web-bot-auth\"\r\nsignature: sig1=:hb+bklmfH2SrtDWIhlVNrJ7vSY/yPN9DIqWcVlZ7zP+T5YFz3w2PNIawUNtBwFYTtYEMmhT+HRY27nCRukczAQ==:\r\n\r\n",
+  "now": 1735689600,
+  "trust_list": {
+    "list": "vectors",
+    "version": "1",
+    "entries": [
+      {
+        "operator": "https://signature-agent.test",
+        "display_name": "Example signing agent",
+        "schemes": [
+          "web-bot-auth"
+        ],
+        "keys": [
+          {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+            "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+          }
+        ],
+        "status": "active"
+      }
+    ]
+  },
+  "expect": {
+    "assurance": 2,
+    "decision": "allow",
+    "operator": "https://signature-agent.test"
+  }
+}

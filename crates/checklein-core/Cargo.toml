@@ -1,0 +1,16 @@
+[package]
+name = "checklein-core"
+description = "Checklein core types: request view, findings, agent context, assurance, policy and receipts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+ed25519-dalek.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

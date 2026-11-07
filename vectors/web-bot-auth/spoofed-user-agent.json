@@ -1,0 +1,35 @@
+{
+  "name": "spoofed-user-agent",
+  "description": "Claims to be ChatGPT-User with no signature. Stays L0 and is flagged for existing bot defenses.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ChatGPT-User/1.0; +https://openai.com/bot)\r\n\r\n",
+  "now": 1735689600,
+  "trust_list": {
+    "list": "vectors",
+    "version": "1",
+    "entries": [
+      {
+        "operator": "https://signature-agent.test",
+        "display_name": "Example signing agent",
+        "schemes": [
+          "web-bot-auth"
+        ],
+        "keys": [
+          {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+            "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+          }
+        ],
+        "status": "active"
+      }
+    ]
+  },
+  "expect": {
+    "assurance": 0,
+    "decision": "pass",
+    "flags": [
+      "unverified_agent_claim"
+    ]
+  }
+}

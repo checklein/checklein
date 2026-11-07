@@ -1,0 +1,16 @@
+[package]
+name = "checklein-httpsig"
+description = "RFC 9421 HTTP Message Signatures verification (Ed25519) for Checklein"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+checklein-core = { path = "../checklein-core" }
+base64.workspace = true
+ed25519-dalek.workspace = true
+sfv.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

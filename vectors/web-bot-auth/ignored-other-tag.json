@@ -1,0 +1,32 @@
+{
+  "name": "ignored-other-tag",
+  "description": "A signature for another profile is not Web Bot Auth: no finding, L0, no opinion.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)\r\nsignature-agent: agent1=\"https://signature-agent.test\"\r\nsignature-input: sig1=(\"@authority\" \"signature-agent\";key=\"agent1\");created=1735689590;expires=1735689650;keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";alg=\"ed25519\";tag=\"some-other-profile\"\r\nsignature: sig1=:G0vaoYZV7d7/zYpOblTa/sdeqcWmv8mALvuirAznOqEW6awl7r9yIbavu0vrD3w/omTAakl0bJQHzs/PGs/HBQ==:\r\n\r\n",
+  "now": 1735689600,
+  "trust_list": {
+    "list": "vectors",
+    "version": "1",
+    "entries": [
+      {
+        "operator": "https://signature-agent.test",
+        "display_name": "Example signing agent",
+        "schemes": [
+          "web-bot-auth"
+        ],
+        "keys": [
+          {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+            "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+          }
+        ],
+        "status": "active"
+      }
+    ]
+  },
+  "expect": {
+    "assurance": 0,
+    "decision": "pass"
+  }
+}

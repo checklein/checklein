@@ -1,0 +1,20 @@
+[package]
+name = "checklein-cli"
+description = "Checklein command-line verifier"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "checklein"
+path = "src/main.rs"
+
+[dependencies]
+checklein-core = { path = "../checklein-core" }
+checklein-webbotauth = { path = "../checklein-webbotauth" }
+clap.workspace = true
+serde_json.workspace = true
+ed25519-dalek.workspace = true
+serde.workspace = true

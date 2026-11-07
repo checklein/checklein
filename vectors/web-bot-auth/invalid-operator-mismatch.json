@@ -1,0 +1,36 @@
+{
+  "name": "invalid-operator-mismatch",
+  "description": "Signature-Agent names evil.test but the key belongs to signature-agent.test on the trust list.",
+  "request": "GET /articles/1 HTTP/1.1\r\nhost: site.example\r\nuser-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)\r\nsignature-agent: agent1=\"https://evil.test\"\r\nsignature-input: sig1=(\"@authority\" \"signature-agent\";key=\"agent1\");created=1735689590;expires=1735689650;keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";alg=\"ed25519\";tag=\"web-bot-auth\"\r\nsignature: sig1=:CE1No1kjicsHOJzbZQPy3sRvz/Acv6bDk8eYvyZiUN3+FLOhWERAmxW9E2oMnRngkI3q6GPjvctHkMJcLXp0Bg==:\r\n\r\n",
+  "now": 1735689600,
+  "trust_list": {
+    "list": "vectors",
+    "version": "1",
+    "entries": [
+      {
+        "operator": "https://signature-agent.test",
+        "display_name": "Example signing agent",
+        "schemes": [
+          "web-bot-auth"
+        ],
+        "keys": [
+          {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs",
+            "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"
+          }
+        ],
+        "status": "active"
+      }
+    ]
+  },
+  "expect": {
+    "assurance": 0,
+    "decision": "challenge",
+    "reason_contains": "different operator",
+    "flags": [
+      "invalid_credential:web-bot-auth@draft-01"
+    ]
+  }
+}
