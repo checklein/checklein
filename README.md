@@ -21,8 +21,10 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Interop with Cloudflare's `web-bot-auth` crate | Their published vector verifies here; their signer's output verifies here; their verifier agrees with ours on every vector |
 | Built-in threshold policy | Cedar and OPA hooks not yet |
 | Signed, hash-chained receipts | Compact JWS (EdDSA); `verify-chain` detects edits and dropped entries |
+| Forward-auth server (`serve`) | For nginx `auth_request`, Traefik `ForwardAuth`, Caddy `forward_auth`: answers 200 or 403 with `Checklein-*` headers. See [`deploy/`](deploy/README.md) |
+| Docker image | Multi-stage build to a distroless, non-root image |
 | Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/` |
-| CLI | `verify`, `conformance`, `verify-chain`, `keygen` |
+| CLI | `verify`, `serve`, `conformance`, `verify-chain`, `keygen` |
 
 ## Try it
 
@@ -32,6 +34,15 @@ cargo build
 ./target/debug/checklein verify examples/signed-request.http --trust-list examples/trust-list.json --now 1735689600
 ./target/debug/checklein verify examples/spoofed-request.http --now 1735689600
 ```
+
+In front of an existing proxy:
+
+```bash
+./target/debug/checklein serve --trust-list examples/trust-list.json --fetch
+curl -i http://127.0.0.1:8787/check -H "X-Forwarded-Host: site.example" -H "User-Agent: ChatGPT-User/1.0"
+```
+
+Proxy configs (nginx, Traefik, Caddy) and Docker Compose demos are in [`deploy/`](deploy/README.md).
 
 Live checks against Cloudflare's public test deployment (network required):
 
@@ -69,9 +80,11 @@ crates/checklein-httpsig     RFC 9421 parsing, signature base, Ed25519 verify an
 crates/checklein-webbotauth  Web Bot Auth adapter and the conformance-vector runner
 crates/checklein-fetch       live key-directory fetching with SSRF guards and caching
 crates/checklein-interop     interop tests against Cloudflare's web-bot-auth crate
+crates/checklein-serve       forward-auth HTTP server behind `checklein serve`
 crates/checklein-cli         the `checklein` binary
 vectors/                     conformance vectors, usable by any verifier
 examples/                    sample requests and trust list
+deploy/                      nginx, Traefik and Caddy configs; Docker Compose demos
 ```
 
 ## Known gaps
@@ -79,6 +92,8 @@ examples/                    sample requests and trust list
 - The replay cache is per process. Several instances behind a load balancer need a shared store (plug one in with `WebBotAuth::with_replay_guard`).
 - A fetched directory's own response signature is not verified yet. Keys from fetched directories stay at L1, which limits the impact.
 - Directory fetching is synchronous (blocking, 500 ms default cap). An async resolver for servers is planned.
+- In `serve` mode, request bodies are not forwarded, so signatures covering `Content-Digest` cannot be checked.
+- The nginx and Traefik configs match Checklein's tested header contract but have not been run against live proxies yet; the Caddy config is untested.
 - Trust lists are not signature-checked yet (JWS planned).
 - Receipt checkpoints are not implemented, so truncating the newest entries is not detectable yet.
 - Only Ed25519 keys are accepted.

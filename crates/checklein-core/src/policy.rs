@@ -18,6 +18,33 @@ pub enum Decision {
     Pass,
 }
 
+impl Decision {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Decision::Allow => "allow",
+            Decision::StepUp => "step_up",
+            Decision::RateLimit => "rate_limit",
+            Decision::Challenge => "challenge",
+            Decision::Deny => "deny",
+            Decision::Pass => "pass",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(
+            match s.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+                "allow" => Decision::Allow,
+                "step_up" => Decision::StepUp,
+                "rate_limit" => Decision::RateLimit,
+                "challenge" => Decision::Challenge,
+                "deny" => Decision::Deny,
+                "pass" => Decision::Pass,
+                _ => return None,
+            },
+        )
+    }
+}
+
 pub trait Policy: Send + Sync {
     /// Identifier and version recorded in receipts.
     fn id(&self) -> (&str, &str);

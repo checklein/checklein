@@ -1,0 +1,6 @@
+target
+research_notes
+reports
+*.jwsl
+*.hex
+.git

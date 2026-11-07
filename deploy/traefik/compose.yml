@@ -1,0 +1,26 @@
+# docker compose -f deploy/traefik/compose.yml up --build
+# then: curl -i http://localhost:8080/ -A "ChatGPT-User/1.0"
+services:
+  traefik:
+    image: traefik:v3.5
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:8080
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+  checklein:
+    build: ../..
+    command: ["serve", "--listen", "0.0.0.0:8787", "--trust-list", "/config/trust-list.json", "--fetch"]
+    volumes: ["../../examples/trust-list.json:/config/trust-list.json:ro"]
+  app:
+    image: traefik/whoami:v1.10
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=PathPrefix(`/`)
+      - traefik.http.routers.app.entrypoints=web
+      - traefik.http.routers.app.middlewares=checklein
+      - traefik.http.middlewares.checklein.forwardauth.address=http://checklein:8787/check
+      # Copies every Checklein-* response header onto the upstream request,
+      # overwriting client-sent copies (Checklein always sends all five).
+      - traefik.http.middlewares.checklein.forwardauth.authResponseHeadersRegex=^Checklein-

@@ -1,0 +1,8 @@
+# Caddy in front of your app, asking Checklein about every request.
+:8080 {
+	forward_auth checklein:8787 {
+		uri /check
+		copy_headers Checklein-Decision Checklein-Assurance Checklein-Operator Checklein-Flags Checklein-Verdict
+	}
+	reverse_proxy app:80
+}

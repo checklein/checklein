@@ -15,12 +15,16 @@ use crate::receipt::{ChainError, Receipt, ReceiptChain};
 use crate::request::RequestView;
 
 /// Headers Checklein sets for downstream services. Incoming copies are stripped first.
-pub const DOWNSTREAM_HEADERS: [&str; 4] = [
+pub const DOWNSTREAM_HEADERS: [&str; 5] = [
+    "checklein-decision",
     "checklein-assurance",
     "checklein-operator",
     "checklein-flags",
     "checklein-verdict",
 ];
+
+/// Downstream header value meaning "no operator" / "no flags".
+pub const NONE: &str = "none";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Verdict {
@@ -35,21 +39,33 @@ pub struct Verdict {
 
 impl Verdict {
     /// Headers to forward downstream so services need no Checklein code.
+    ///
+    /// All five are always present, with `none` for an unknown operator or no flags,
+    /// so a proxy that copies them overwrites any client-supplied copy instead of
+    /// letting it through. (Empty values are avoided: some servers drop them.)
     pub fn downstream_headers(&self) -> Vec<(&'static str, String)> {
-        let mut h = vec![
+        let flags = if self.context.flags.is_empty() {
+            NONE.to_string()
+        } else {
+            self.context.flags.join(",")
+        };
+        vec![
+            ("checklein-decision", self.decision.as_str().to_string()),
             (
                 "checklein-assurance",
                 self.context.assurance.level().to_string(),
             ),
+            (
+                "checklein-operator",
+                self.context
+                    .agent
+                    .operator
+                    .clone()
+                    .unwrap_or_else(|| NONE.to_string()),
+            ),
+            ("checklein-flags", flags),
             ("checklein-verdict", self.context.verdict_id.clone()),
-        ];
-        if let Some(op) = &self.context.agent.operator {
-            h.push(("checklein-operator", op.clone()));
-        }
-        if !self.context.flags.is_empty() {
-            h.push(("checklein-flags", self.context.flags.join(",")));
-        }
-        h
+        ]
     }
 }
 

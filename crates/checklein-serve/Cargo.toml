@@ -1,0 +1,16 @@
+[package]
+name = "checklein-serve"
+description = "Forward-auth HTTP server for Checklein (nginx auth_request, Traefik ForwardAuth, Caddy forward_auth)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+checklein-core = { path = "../checklein-core" }
+serde_json.workspace = true
+tiny_http = "0.12"
+
+[dev-dependencies]
+checklein-webbotauth = { path = "../checklein-webbotauth" }
