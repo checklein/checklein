@@ -2,3 +2,7 @@
 *.jwsl
 *.hex
 .DS_Store
+
+# Private research, kept out of the public repo
+research_notes/
+reports/
