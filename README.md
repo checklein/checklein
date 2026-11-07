@@ -6,7 +6,7 @@ Agents reach sites, APIs and MCP servers carrying credentials from several incom
 
 It issues no identities, invents no new credential format, and does no KYC.
 
-> **Status: v0.1-dev.** Web Bot Auth is implemented end to end. Everything else in the [design](https://claude.ai/artifact/G5CNBeLT47fHefsHRw5YD8) is not built yet. Not for production.
+> **Status: v0.1.0, early.** Web Bot Auth is implemented end to end. MCP OAuth delegation, payment-network schemes and policy-engine hooks are planned. Run it in shadow mode (observe and label, don't block) before relying on it.
 
 ## What works today
 

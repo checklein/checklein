@@ -1,0 +1,159 @@
+name: release
+
+# Push a tag like v0.1.0 to build binaries and a multi-arch image, then publish
+# a GitHub release whose notes come from CHANGELOG.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  IMAGE: ghcr.io/checklein/checklein
+
+jobs:
+  binaries:
+    name: binary (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Build
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          if [[ "$TARGET" == *musl ]]; then
+            # Native runner per arch: point the C compiler for ring at musl-gcc.
+            export "CC_${TARGET//-/_}=musl-gcc"
+          fi
+          cargo build --release --locked -p checklein-cli --target "$TARGET"
+      - name: Package
+        shell: bash
+        run: |
+          name="checklein-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/checklein" LICENSE README.md CHANGELOG.md "$name/"
+          tar czf "$name.tar.gz" "$name"
+          shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+      - name: Smoke test
+        if: matrix.target != 'x86_64-apple-darwin' # cross-built on an arm64 runner
+        shell: bash
+        run: |
+          "target/${{ matrix.target }}/release/checklein" --version
+          "target/${{ matrix.target }}/release/checklein" conformance vectors/web-bot-auth
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.target }}
+          path: checklein-*.tar.gz*
+
+  image:
+    name: image (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, platform: linux/amd64, slug: amd64 }
+          - { runner: ubuntu-24.04-arm, platform: linux/arm64, slug: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/checklein/checklein
+            org.opencontainers.image.description=Open-source, neutral verifier for AI agent traffic
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.version=${{ github.ref_name }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - name: Record digest
+        run: |
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.slug }}
+          path: digests/*
+          if-no-files-found: error
+
+  image-manifest:
+    name: image manifest
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Create multi-arch manifest
+        working-directory: digests
+        run: |
+          # Word splitting is intended: one -t per tag, one source per digest.
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+      - name: Inspect
+        run: docker buildx imagetools inspect "${IMAGE}:${{ steps.meta.outputs.version }}"
+
+  release:
+    needs: [binaries, image-manifest]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: bin-*
+          merge-multiple: true
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f && !/^\[[0-9]/' CHANGELOG.md > notes.md
+          # Backticks below are literal Markdown, not command substitution.
+          # shellcheck disable=SC2016
+          printf '\n### Install\n\n```bash\ndocker pull %s:%s\n```\n\nOr download a binary below and verify it against its `.sha256` file.\n' "$IMAGE" "$version" >> notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Checklein $GITHUB_REF_NAME" --notes-file notes.md --verify-tag
