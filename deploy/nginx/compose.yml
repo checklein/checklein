@@ -1,4 +1,4 @@
-# docker compose -f deploy/nginx/compose.yml up --build
+# docker compose -f deploy/nginx/compose.yml up -d
 # then: curl -i http://localhost:8080/ -A "ChatGPT-User/1.0"
 services:
   nginx:
@@ -7,7 +7,8 @@ services:
     volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
     depends_on: [checklein, app]
   checklein:
-    build: ../..
+    image: ghcr.io/checklein/checklein:0.1
+    # To run your local changes instead: replace the line above with `build: ../..`
     command: ["serve", "--listen", "0.0.0.0:8787", "--trust-list", "/config/trust-list.json", "--fetch"]
     volumes: ["../../examples/trust-list.json:/config/trust-list.json:ro"]
   app:

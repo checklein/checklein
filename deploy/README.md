@@ -55,7 +55,7 @@ The Traefik example uses the file provider rather than Docker labels. It works o
 Try one (needs Docker and a Rust toolchain for the signed request):
 
 ```bash
-docker compose -f deploy/nginx/compose.yml up -d --build    # or traefik / caddy
+docker compose -f deploy/nginx/compose.yml up -d    # or traefik / caddy; pulls ghcr.io/checklein/checklein
 deploy/demo.sh
 ```
 

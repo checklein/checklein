@@ -27,7 +27,20 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/` |
 | CLI | `verify`, `serve`, `conformance`, `verify-chain`, `keygen` |
 
+## Install
+
+Docker (linux/amd64 and linux/arm64):
+
+```bash
+docker pull ghcr.io/checklein/checklein:0.1
+docker run --rm -p 127.0.0.1:8787:8787 ghcr.io/checklein/checklein:0.1 serve --listen 0.0.0.0:8787
+```
+
+Prebuilt binaries for Linux (static, x86_64 and aarch64) and macOS (Apple silicon and Intel) are on the [releases page](https://github.com/checklein/checklein/releases), each with a `.sha256` checksum. The macOS binaries are not notarized yet: if you downloaded one with a browser, run `xattr -d com.apple.quarantine checklein` before the first launch. To build from source you need Rust 1.95 or newer: `cargo build --release -p checklein-cli`.
+
 ## Try it
+
+From a clone of the repo:
 
 ```bash
 cargo build

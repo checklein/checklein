@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sends four requests through a running demo stack and shows what the app received.
 #
-#   docker compose -f deploy/nginx/compose.yml up -d --build   # or traefik / caddy
+#   docker compose -f deploy/nginx/compose.yml up -d   # or traefik / caddy
 #   deploy/demo.sh                                              # default: localhost:8080
 #
 # The signed request uses the published RFC 9421 test key, which
