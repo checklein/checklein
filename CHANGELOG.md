@@ -4,6 +4,10 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
+Adds a way for operators to check their own deployment, and continuous fuzzing.
+
 ### Added
 
 - `checklein selftest`: checks a deployment directly (`--serve`) and through the proxy (`--via`, against an endpoint that echoes request headers): spoofed agent, signed test request, replay, forged headers.
@@ -11,7 +15,7 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 
 ### Changed
 
-- Demo Compose files pull the published image instead of building locally.
+- Demo Compose files pull the published image (`ghcr.io/checklein/checklein:0.2`) instead of building locally.
 
 ## [0.1.0] - 2026-11-07
 
@@ -35,4 +39,6 @@ First release: Web Bot Auth verification end to end, usable in front of an exist
 
 - Replay cache is per process; trust lists and fetched directories are not signature-checked yet; no receipt checkpoints; Ed25519 only; request bodies are not checked in `serve` mode.
 
+[Unreleased]: https://github.com/checklein/checklein/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/checklein/checklein/releases/tag/v0.2.0
 [0.1.0]: https://github.com/checklein/checklein/releases/tag/v0.1.0

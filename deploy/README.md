@@ -81,6 +81,9 @@ checklein selftest --serve http://127.0.0.1:8787
 # The whole path through your proxy, to an endpoint that echoes request headers
 # (for example traefik/whoami routed at /checklein-echo)
 checklein selftest --via https://staging.example.com/checklein-echo
+
+# The same, with nothing installed but Docker
+docker run --rm ghcr.io/checklein/checklein:0.2 selftest --via https://staging.example.com/checklein-echo
 ```
 
 The signed check uses the public RFC 9421 test key, so it reports SKIP unless that key is trusted (as in `examples/trust-list.json`). In production, SKIP is the correct result. Any FAIL exits non-zero, so `selftest` can run in a deploy pipeline.

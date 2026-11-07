@@ -7,7 +7,7 @@ services:
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro"]
     depends_on: [checklein, app]
   checklein:
-    image: ghcr.io/checklein/checklein:0.1
+    image: ghcr.io/checklein/checklein:0.2
     # To run your local changes instead: replace the line above with `build: ../..`
     command: ["serve", "--listen", "0.0.0.0:8787", "--trust-list", "/config/trust-list.json", "--fetch"]
     volumes: ["../../examples/trust-list.json:/config/trust-list.json:ro"]
