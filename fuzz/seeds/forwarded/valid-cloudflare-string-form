@@ -1,0 +1,9 @@
+Host: checklein:8787
+X-Forwarded-Method: GET
+X-Forwarded-Proto: https
+X-Forwarded-Host: site.example
+X-Forwarded-Uri: /articles/1
+user-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)
+signature-agent: "https://signature-agent.test"
+signature-input: sig1=("@authority" "signature-agent");created=1735689590;expires=1735689650;keyid="poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U";alg="ed25519";tag="web-bot-auth"
+signature: sig1=:WLw8ndOSYRlZ951QQz7XWYuXrQbGBsjInTeQJ1+OAguMnGQZlztFejh5zodIZRZwEdagBCLe3Y97OEBrNNdSAg==:

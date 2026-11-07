@@ -1,0 +1,7 @@
+GET /articles/1 HTTP/1.1
+host: site.example
+user-agent: Mozilla/5.0 (compatible; ExampleAgent/1.0)
+signature-agent: agent1="https://evil.test"
+signature-input: sig1=("@authority" "signature-agent";key="agent1");created=1735689590;expires=1735689650;keyid="poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U";alg="ed25519";tag="web-bot-auth"
+signature: sig1=:CE1No1kjicsHOJzbZQPy3sRvz/Acv6bDk8eYvyZiUN3+FLOhWERAmxW9E2oMnRngkI3q6GPjvctHkMJcLXp0Bg==:
+

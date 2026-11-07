@@ -1,0 +1,1 @@
+{"list": "vectors", "version": "1", "entries": [{"operator": "https://signature-agent.test", "display_name": "Example signing agent", "schemes": ["web-bot-auth"], "keys": [{"kty": "OKP", "crv": "Ed25519", "x": "JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs", "kid": "poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U"}], "status": "revoked"}]}

@@ -2,6 +2,17 @@
 
 All notable changes to Checklein. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may change APIs and formats.
 
+## [Unreleased]
+
+### Added
+
+- `checklein selftest`: checks a deployment directly (`--serve`) and through the proxy (`--via`, against an endpoint that echoes request headers): spoofed agent, signed test request, replay, forged headers.
+- Fuzzing: `cargo-fuzz` targets for request parsing, structured signature fields, forward-auth reconstruction, key material and receipt logs, seeded from the conformance vectors; a weekly CI job keeps a growing corpus.
+
+### Changed
+
+- Demo Compose files pull the published image instead of building locally.
+
 ## [0.1.0] - 2026-11-07
 
 First release: Web Bot Auth verification end to end, usable in front of an existing reverse proxy.

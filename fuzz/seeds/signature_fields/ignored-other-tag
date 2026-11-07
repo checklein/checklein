@@ -1,0 +1,3 @@
+sig1=("@authority" "signature-agent";key="agent1");created=1735689590;expires=1735689650;keyid="poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U";alg="ed25519";tag="some-other-profile"
+sig1=:G0vaoYZV7d7/zYpOblTa/sdeqcWmv8mALvuirAznOqEW6awl7r9yIbavu0vrD3w/omTAakl0bJQHzs/PGs/HBQ==:
+agent1="https://signature-agent.test"

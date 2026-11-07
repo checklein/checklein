@@ -198,9 +198,12 @@ name = "checklein-serve"
 version = "0.1.0"
 dependencies = [
  "checklein-core",
+ "checklein-httpsig",
  "checklein-webbotauth",
+ "ed25519-dalek 3.0.0",
  "serde_json",
  "tiny_http",
+ "ureq",
 ]
 
 [[package]]

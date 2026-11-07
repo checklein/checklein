@@ -89,6 +89,22 @@ enum Cmd {
         #[command(flatten)]
         verifier: VerifierArgs,
     },
+    /// Check a deployment: the `serve` endpoint directly, and/or the full path through
+    /// your proxy to an endpoint that echoes request headers (for example traefik/whoami).
+    ///
+    /// Sends a spoofed agent, a request signed with the public RFC 9421 test key, a replay
+    /// and forged Checklein-* headers. Exits non-zero if any check fails.
+    Selftest {
+        /// The `checklein serve` base URL. Default: http://127.0.0.1:8787 (when --via is absent).
+        #[arg(long)]
+        serve: Option<String>,
+        /// A URL behind your proxy whose response echoes the request headers.
+        #[arg(long)]
+        via: Option<String>,
+        /// Host the serve checks pretend the request was for.
+        #[arg(long, default_value = "selftest.example")]
+        host: String,
+    },
     /// Run every *.json conformance vector in a directory.
     Conformance { dir: PathBuf },
     /// Verify signatures and hash links of a receipt log.
@@ -235,6 +251,45 @@ fn real_main(cli: Cli) -> Res<ExitCode> {
             );
             running.join();
             Ok(ExitCode::SUCCESS)
+        }
+
+        Cmd::Selftest { serve, via, host } => {
+            use checklein_serve::selftest::{Outcome, check_serve, check_via};
+            let serve = match (&serve, &via) {
+                (None, None) => Some("http://127.0.0.1:8787".to_string()),
+                _ => serve,
+            };
+            let mut checks = Vec::new();
+            if let Some(url) = &serve {
+                checks.extend(check_serve(url, &host));
+            }
+            if let Some(url) = &via {
+                checks.extend(check_via(url));
+            }
+            let (mut pass, mut fail, mut skip) = (0, 0, 0);
+            for c in &checks {
+                let tag = match c.outcome {
+                    Outcome::Pass => {
+                        pass += 1;
+                        "PASS"
+                    }
+                    Outcome::Fail => {
+                        fail += 1;
+                        "FAIL"
+                    }
+                    Outcome::Skip => {
+                        skip += 1;
+                        "SKIP"
+                    }
+                };
+                println!("{tag}  {}  ({})", c.name, c.detail);
+            }
+            println!("\n{pass} passed, {fail} failed, {skip} skipped");
+            Ok(if fail == 0 {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            })
         }
 
         Cmd::Conformance { dir } => {

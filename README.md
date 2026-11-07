@@ -25,7 +25,8 @@ It issues no identities, invents no new credential format, and does no KYC.
 | Docker image | Multi-stage build to a distroless, non-root image (about 55 MB) |
 | Live proxy demos | nginx, Traefik and Caddy verified end to end with `deploy/demo.sh` |
 | Conformance vectors | 16 Web Bot Auth vectors in `vectors/web-bot-auth/` |
-| CLI | `verify`, `serve`, `conformance`, `verify-chain`, `keygen` |
+| CLI | `verify`, `serve`, `selftest`, `conformance`, `verify-chain`, `keygen` |
+| Fuzzing | `cargo-fuzz` targets for every parser that sees untrusted input; runs weekly in CI |
 
 ## Install
 
@@ -94,11 +95,12 @@ crates/checklein-httpsig     RFC 9421 parsing, signature base, Ed25519 verify an
 crates/checklein-webbotauth  Web Bot Auth adapter and the conformance-vector runner
 crates/checklein-fetch       live key-directory fetching with SSRF guards and caching
 crates/checklein-interop     interop tests against Cloudflare's web-bot-auth crate
-crates/checklein-serve       forward-auth HTTP server behind `checklein serve`
+crates/checklein-serve       forward-auth HTTP server behind `checklein serve`, and `selftest`
 crates/checklein-cli         the `checklein` binary
 vectors/                     conformance vectors, usable by any verifier
 examples/                    sample requests and trust list
 deploy/                      nginx, Traefik and Caddy configs; Docker Compose demos
+fuzz/                        cargo-fuzz targets and seed corpora (nightly toolchain)
 ```
 
 ## Known gaps

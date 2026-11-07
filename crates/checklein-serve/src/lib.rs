@@ -15,6 +15,8 @@
 //! **Security:** forwarding headers are trusted. Listen only where the proxy, and
 //! nothing else, can reach (the default is 127.0.0.1).
 
+pub mod selftest;
+
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;

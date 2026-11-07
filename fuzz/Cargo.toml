@@ -1,0 +1,56 @@
+[package]
+name = "checklein-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+checklein-core = { path = "../crates/checklein-core" }
+checklein-httpsig = { path = "../crates/checklein-httpsig" }
+checklein-webbotauth = { path = "../crates/checklein-webbotauth" }
+checklein-fetch = { path = "../crates/checklein-fetch" }
+checklein-serve = { path = "../crates/checklein-serve" }
+serde_json = "1"
+
+# Kept out of the main workspace: fuzzing needs nightly and its own lockfile.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "request"
+path = "fuzz_targets/request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "signature_fields"
+path = "fuzz_targets/signature_fields.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "receipts"
+path = "fuzz_targets/receipts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "key_material"
+path = "fuzz_targets/key_material.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "forwarded"
+path = "fuzz_targets/forwarded.rs"
+test = false
+doc = false
+bench = false

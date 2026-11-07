@@ -70,6 +70,21 @@ The whoami app echoes the request it received, so the output shows what your app
 
 To sign your own test requests: `cargo run -q -p checklein-webbotauth --example sign-test-request -- <host:port>`. It uses the published RFC 9421 test key, so it is for demos only.
 
+## Check your own deployment
+
+`checklein selftest` sends a spoofed agent, a signed test request, a replay and forged `Checklein-*` headers, and reports PASS, FAIL or SKIP for each:
+
+```bash
+# The serve endpoint directly, playing the proxy
+checklein selftest --serve http://127.0.0.1:8787
+
+# The whole path through your proxy, to an endpoint that echoes request headers
+# (for example traefik/whoami routed at /checklein-echo)
+checklein selftest --via https://staging.example.com/checklein-echo
+```
+
+The signed check uses the public RFC 9421 test key, so it reports SKIP unless that key is trusted (as in `examples/trust-list.json`). In production, SKIP is the correct result. Any FAIL exits non-zero, so `selftest` can run in a deploy pipeline.
+
 ## Useful flags
 
 ```bash
