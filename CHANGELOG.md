@@ -4,6 +4,10 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-09
+
+Adds MCP OAuth (user-delegated access tokens, assurance L3) and hardens trust: signed trust lists and receipt checkpoints.
+
 ### Added
 
 - **MCP OAuth adapter** (`--mcp-config`): verifies JWT access tokens from configured issuers (RS256/384/512, PS256/384/512, ES256/384, EdDSA; never HMAC or `none`); RFC 8707 audience, RFC 9068 `at+jwt`, `exp`/`nbf`/`iat` against the injected clock; RFC 8693 delegation chains (depth-bounded); client identity from Client ID Metadata Document URLs; machine vs user tokens (RFC 9068 `sub == client_id`, `gty`, per-issuer rules); subjects pseudonymized with a keyed hash. Issuer keys inline or from `jwks_uri` through the SSRF-guarded fetcher, with rate-limited refetching.
@@ -17,6 +21,12 @@ All notable changes to Checklein. The format follows [Keep a Changelog](https://
 - **Receipt checkpoints:** `--checkpoints FILE --checkpoint-every N` write signed checkpoints (count + head) to separate storage; `verify-chain --checkpoints` detects a log cut short or rewritten under a checkpoint.
 - Receipts, checkpoints and trust lists share one compact-JWS implementation with a distinct `typ` per artifact, so one can never be passed off as another.
 - `serve` isolates panics per request; fuzzing found and fixed a remote panic on non-ASCII `Authorization` headers.
+
+### Changed
+
+- Loading an unsigned trust list now prints a warning (use `--require-signed-trust-lists` to refuse them).
+- Library: `ReceiptChain::resume` now takes the existing receipt count as well as the head, so checkpoints continue correctly across restarts.
+- Demo Compose files use the `0.3` image.
 
 ## [0.2.0] - 2026-11-07
 
@@ -53,6 +63,7 @@ First release: Web Bot Auth verification end to end, usable in front of an exist
 
 - Replay cache is per process; trust lists and fetched directories are not signature-checked yet; no receipt checkpoints; Ed25519 only; request bodies are not checked in `serve` mode.
 
-[Unreleased]: https://github.com/checklein/checklein/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/checklein/checklein/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/checklein/checklein/releases/tag/v0.3.0
 [0.2.0]: https://github.com/checklein/checklein/releases/tag/v0.2.0
 [0.1.0]: https://github.com/checklein/checklein/releases/tag/v0.1.0

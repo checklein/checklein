@@ -145,7 +145,7 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "checklein-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "checklein-fetch",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek 3.0.0",
@@ -172,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-fetch"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "serde_json",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-httpsig"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "checklein-core",
@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-interop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "checklein-fetch",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-mcp"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "hmac 0.13.0",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-serve"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "checklein-httpsig",
@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "checklein-webbotauth"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "checklein-core",
  "checklein-httpsig",
